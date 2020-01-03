@@ -12,23 +12,31 @@ class PickleServer(Persistence):
         self.db = db
         self.speed = optimize == 'speed'  # vs 'space'
 
-    def _filename(self, data_in, transformation):
-        return self.db + data_in.dataset.name + '-' + \
-               data_in.uuid + '-' + transformation.uuid + '.dump'
+    def _filename(self, prefix, previous_data, transformation):
+        prev_uuid = 'DØØØØØØØØØØØØØØØØØØ0' if previous_data is None \
+            else previous_data.uuid
+        transf_uuid = 'TØØØØØØØØØØØØØØØØØØ0' if transformation is None \
+            else transformation.uuid
+        rest = '-' + prev_uuid + '-' + transf_uuid + '.dump'
+        if prefix == '*':
+            query = self.db + '*' + rest
+            lst = glob(query)
+            print(lst)
+            if len(lst) > 1:
+                raise Exception('Multiple files found:', query, lst)
+            if len(lst) == 1:
+                return lst[0]
+            else:
+                return self.db + rest
+        else:
+            return self.db + prefix + rest
 
-    def store(self, data_in, transformation, fields, data_out, check_dup=True):
+    def fetch(self, previous_data, transformation, fields=None, lock=False):
         # TODO: deal with fields and missing fields?
-        filename = self._filename(data_in, transformation)
+        if fields is None:
+            fields = ['X', 'Y']
 
-        # Already exists?
-        if check_dup and Path(filename).exists():
-            raise DuplicateEntryException
-
-        self._dump(data_out, filename)
-
-    def fetch(self, data_in, transformation, fields, lock=False):
-        # TODO: deal with fields and missing fields?
-        filename = self._filename(data_in, transformation)
+        filename = self._filename('*', previous_data, transformation)
 
         # Not started yet?
         if not Path(filename).exists():
@@ -50,6 +58,27 @@ class PickleServer(Persistence):
             raise FailedEntryException
 
         return transformed_data
+
+    def store(self, data, previous_data=None, transformation=None, fields=None,
+              check_dup=True):
+        """The dataset name of data_out will be the filename prefix for
+        convenience."""
+        # TODO: deal with fields and missing fields?
+        if fields is None:
+            fields = ['X', 'Y']
+
+        filename = self._filename(data.dataset.name,
+                                  previous_data, transformation)
+
+        # Already exists?
+        if check_dup and Path(filename).exists():
+            raise DuplicateEntryException('Already exists:', filename)
+
+        locked = self._filename('', previous_data, transformation)
+        if Path(locked).exists():
+            os.remove(locked)
+
+        self._dump(data, filename)
 
     def list_by_name(self, substring):
         datas = []
