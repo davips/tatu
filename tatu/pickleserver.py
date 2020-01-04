@@ -13,6 +13,7 @@ class PickleServer(Persistence):
         self.speed = optimize == 'speed'  # vs 'space'
 
     def _filename(self, prefix, previous_data, transformation):
+        # TODO: move NoThing uuids to parent
         prev_uuid = 'DØØØØØØØØØØØØØØØØØØ0' if previous_data is None \
             else previous_data.uuid
         transf_uuid = 'TØØØØØØØØØØØØØØØØØØ0' if transformation is None \
@@ -21,7 +22,6 @@ class PickleServer(Persistence):
         if prefix == '*':
             query = self.db + '*' + rest
             lst = glob(query)
-            print(lst)
             if len(lst) > 1:
                 raise Exception('Multiple files found:', query, lst)
             if len(lst) == 1:
@@ -31,7 +31,8 @@ class PickleServer(Persistence):
         else:
             return self.db + prefix + rest
 
-    def fetch(self, previous_data, transformation, fields=None, lock=False):
+    def fetch(self, previous_data, transformation=None, fields=None,
+              lock=False):
         # TODO: deal with fields and missing fields?
         if fields is None:
             fields = ['X', 'Y']
@@ -64,6 +65,12 @@ class PickleServer(Persistence):
         """The dataset name of data_out will be the filename prefix for
         convenience."""
         # TODO: deal with fields and missing fields?
+        if bool(previous_data) != bool(transformation):
+            raise Exception('It is not possible to store data with '
+                            'previous_data, but without transformation - '
+                            'and vice-versa!')
+        if previous_data is None:
+            previous_data = data
         if fields is None:
             fields = ['X', 'Y']
 
