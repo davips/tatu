@@ -11,7 +11,7 @@ class Persistence(ABC):
      SQLite, remote/local MongoDB, MySQL server, pickled or even CSV files.
     """
 
-    worker = Worker()  # Global state !
+    worker = Worker(multiprocess=False)  # Global state !
 
     def __init__(self, blocking=False):
         self.blocking = blocking
@@ -42,14 +42,14 @@ class Persistence(ABC):
         ---------
         DuplicateEntryException
         """
-        if not self.blocking:
+        if self.blocking:
+            self._store_impl(data, fields, training_data_uuid, check_dup)
+        else:
             f = partial(
                 self._store_impl,
                 data, fields, training_data_uuid, check_dup
             )
             self.worker.put(f)
-        else:
-            self._store_impl(data, fields, training_data_uuid, check_dup)
 
     @abstractmethod
     def fetch(self, hollow_data, fields, training_data_uuid='', lock=False):
