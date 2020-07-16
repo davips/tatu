@@ -1,6 +1,5 @@
 from pjml.tool.abc.mixin.timers import Timers
-from sqlalchemy import Column, Integer, LargeBinary, CHAR, \
-    VARCHAR
+from sqlalchemy import Column, Integer, LargeBinary, CHAR, VARCHAR
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists, create_database
@@ -15,14 +14,14 @@ class SQLA(Persistence):
     def __init__(self):
         st = Timers._clock()
         if not database_exists(self.engine.url):
-            print('Creating database', self.engine.url)
+            print("Creating database", self.engine.url)
             create_database(self.engine.url)
         print(Timers._clock() - st)
 
         st = Timers._clock()
         Base.metadata.create_all(self.engine)
         print(Timers._clock() - st)
-        print('engine started,,,,,,,,,,,,,,,,,,,,,,,')
+        print("engine started,,,,,,,,,,,,,,,,,,,,,,,")
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
         # TODO: verify if pure mysql is faster, or just profile to see the
@@ -41,10 +40,7 @@ class SQLA(Persistence):
 
         # TODO: handle fields properly
         for matrix_name in data.matrix_names:
-            du = Dump(
-                id=data.uuids[matrix_name].id,
-                value=data.field_dump(matrix_name)
-            )
+            du = Dump(id=data.uuids[matrix_name].id, value=data.field_dump(matrix_name))
             self.session.add(du)
 
         self.session.commit()

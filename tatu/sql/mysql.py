@@ -13,11 +13,11 @@ class MySQL(SQL):
         self.info = server + ', ' + db
         self.read_only = read_only
         self.database = server
-        credentials, self.host = server.split('@')
-        self.user, self.password = credentials.split(':')
+        credentials, self.host = server.split("@")
+        self.user, self.password = credentials.split(":")
         self.db = db
         self.debug = debug
-        if '-' in db:
+        if "-" in db:
             raise Exception("'-' not allowed in db name!")
         self.hostname = socket.gethostname()
         self._open()
@@ -38,7 +38,7 @@ class MySQL(SQL):
         self.connection.autocommit(True)
 
         if self.debug:
-            print('getting cursor...')
+            print("getting cursor...")
         self.cursor = self.connection.cursor()
 
         # Create db if it doesn't exist yet.
@@ -46,11 +46,11 @@ class MySQL(SQL):
         setup = self.get_one() is None
         if setup:
             if self.debug:
-                print('creating database', self.db, 'on', self.database, '...')
+                print("creating database", self.db, "on", self.database, "...")
             self.cursor.execute("create database if not exists " + self.db)
 
         if self.debug:
-            print('using database', self.db, 'on', self.database, '...')
+            print("using database", self.db, "on", self.database, "...")
         self.cursor.execute("use " + self.db)
 
         if setup:
@@ -59,16 +59,16 @@ class MySQL(SQL):
 
     @staticmethod
     def _now_function():
-        return 'now()'
+        return "now()"
 
     @staticmethod
     def _auto_incr():
-        return 'AUTO_INCREMENT'
+        return "AUTO_INCREMENT"
 
     @staticmethod
     def _keylimit():
-        return '(190)'
+        return "(190)"
 
     @staticmethod
     def _on_conflict(fields=None):
-        return 'ON DUPLICATE KEY UPDATE'
+        return "ON DUPLICATE KEY UPDATE"

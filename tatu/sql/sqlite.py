@@ -25,21 +25,21 @@ class SQLite(SQL):
             self.query(f"select 1 from data")
         except:
             if self.debug:
-                print('creating database', self.database, '...')
+                print("creating database", self.database, "...")
             self._setup()
 
     @staticmethod
     def _now_function():
-        return 'datetime()'
+        return "datetime()"
 
     @staticmethod
     def _auto_incr():
-        return 'AUTOINCREMENT'
+        return "AUTOINCREMENT"
 
     @staticmethod
     def _keylimit():
-        return ''
+        return ""
 
     @staticmethod
-    def _on_conflict(fields=''):
-        return f'ON CONFLICT{fields} DO UPDATE SET'
+    def _on_conflict(fields=""):
+        return f"ON CONFLICT{fields} DO UPDATE SET"

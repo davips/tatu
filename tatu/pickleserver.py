@@ -3,8 +3,13 @@ import traceback
 from time import sleep
 
 from cururu.disk import save, load
-from cururu.persistence import Persistence, LockedEntryException, \
-    FailedEntryException, DuplicateEntryException, UnlockedEntryException
+from cururu.persistence import (
+    Persistence,
+    LockedEntryException,
+    FailedEntryException,
+    DuplicateEntryException,
+    UnlockedEntryException,
+)
 import _pickle as pickle
 from pathlib import Path
 from glob import glob
@@ -27,13 +32,13 @@ class PickleServer(Persistence):
         if not Path(filename).exists():
             # print('W: Not started.', filename)
             if lock:
-                print('W: Locking...', filename)
+                print("W: Locking...", filename)
                 Path(filename).touch()
             return None
 
         # Locked?
         if Path(filename).stat().st_size == 0:
-            print('W: Previously locked by other process.', filename)
+            print("W: Previously locked by other process.", filename)
             raise LockedEntryException(filename)
 
         transformed_data = self._load(filename)
@@ -59,7 +64,7 @@ class PickleServer(Persistence):
 
         # Already exists?
         if check_dup and Path(filename).exists():
-            raise DuplicateEntryException('Already exists:', filename)
+            raise DuplicateEntryException("Already exists:", filename)
 
         locked = self._filename('', data, training_data_uuid)
         if Path(locked).exists():
@@ -69,7 +74,7 @@ class PickleServer(Persistence):
 
     def list_by_name(self, substring, only_original=True):
         datas = []
-        path = self.db + f'/*{substring}*-*.dump'
+        path = self.db + f"/*{substring}*-*.dump"
         for file in sorted(glob(path), key=os.path.getmtime):
             data = self._load(file)
             if only_original and data.history.size == 1:
@@ -87,13 +92,13 @@ class PickleServer(Persistence):
             query = self.db + '/*' + rest
             lst = glob(query)
             if len(lst) > 1:
-                raise Exception('Multiple files found:', query, lst)
+                raise Exception("Multiple files found:", query, lst)
             if len(lst) == 1:
                 return lst[0]
             else:
-                return self.db + '/' + rest
+                return self.db + "/" + rest
         else:
-            return self.db + '/' + prefix + rest
+            return self.db + "/" + prefix + rest
 
     def _load(self, filename):
         """
@@ -111,7 +116,7 @@ class PickleServer(Persistence):
                 return load(filename)
         except Exception as e:
             traceback.print_exc()
-            print('Problems loading', filename)
+            print("Problems loading", filename)
             exit(0)
 
     def _dump(self, data, filename):
@@ -129,10 +134,9 @@ class PickleServer(Persistence):
         else:
             save(filename, data)
 
-    def unlock(self, data, training_data_uuid=''):
-        filename = self._filename('*', data, training_data_uuid)
+    def unlock(self, data, training_data_uuid=""):
+        filename = self._filename("*", data, training_data_uuid)
         if not Path(filename).exists():
-            raise UnlockedEntryException('Cannot unlock something that is not '
-                                         'locked!', filename)
-        print('W: Unlocking...', filename)
+            raise UnlockedEntryException("Cannot unlock something that is not " "locked!", filename)
+        print("W: Unlocking...", filename)
         os.remove(filename)
