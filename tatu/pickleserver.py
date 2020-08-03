@@ -87,12 +87,14 @@ class PickleServer(Persistence):
     def fetch_matrix(self, name):
         raise NotImplementedError
 
+
     def _filename(self, prefix, data, training_data_uuid=''):
         uuids = [tr.sid for tr in data.history]
         rest = f'-{training_data_uuid}-' + '-'.join(uuids) + \
                f'.{self.optimize}.dump'
         if prefix == '*':
             query = self.db + '/*' + rest
+
             lst = glob(query)
             if len(lst) > 1:
                 raise Exception("Multiple files found:", query, lst)
