@@ -1,9 +1,10 @@
 import _pickle as pickle
-import json
 import os
 import traceback
 from glob import glob
 from pathlib import Path
+
+from pjdata.types import Data
 
 from cururu.disk import save, load
 from cururu.persistence import (
@@ -13,10 +14,10 @@ from cururu.persistence import (
     DuplicateEntryException,
     UnlockedEntryException,
 )
+
 import _pickle as pickle
 from pathlib import Path
 from glob import glob
-
 
 class PickleServer(Persistence):
     def __init__(self, db='/tmp/cururu', optimize='speed'):
@@ -60,8 +61,9 @@ class PickleServer(Persistence):
             fields = ['X', 'Y']
 
         # TODO: reput name on Data?
+
         filename = self._filename('name', data, training_data_uuid)
-        # filename = self._filename(data.name, data, training_data_uuid)
+       # filename = self._filename(data.name, data, training_data_uuid)
 
         # sleep(0.020)  # Latency simulator.
 
@@ -94,6 +96,7 @@ class PickleServer(Persistence):
                f'.{self.optimize}.dump'
         if prefix == '*':
             query = self.db + '/*' + rest
+
 
             lst = glob(query)
             if len(lst) > 1:
