@@ -3,6 +3,7 @@ import os
 import traceback
 from glob import glob
 from pathlib import Path
+from typing import Optional
 
 from pjdata.types import Data
 
@@ -34,7 +35,7 @@ class PickleServer(Persistence):
 
         # Not started yet?
         if not Path(filename).exists():
-            # print('W: Not started.', filename)
+            print('W: Not started.', filename)
             if lock:
                 print("W: Locking...", filename)
                 Path(filename).touch()
