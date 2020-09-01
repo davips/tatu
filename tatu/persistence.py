@@ -100,7 +100,11 @@ class Persistence(ABC):
         uuid = UUID()
         data = None
         lastuuid = UUID(id_)
-        history = self.fetch(UUIDData(lastuuid)).history
+        firstdata = self.fetch(UUIDData(lastuuid))
+        # TODO: solve this check in pjdata
+        if firstdata.history is None:
+            firstdata.history = []
+        history = (list(firstdata.history) == 0) or firstdata.historystr
         if folder:
             lastuuid.generate_avatar(f"{folder}/{f'{id_}.jpg'}")
         lst = []
