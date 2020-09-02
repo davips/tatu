@@ -11,6 +11,10 @@ class Persistence(ABC):
      SQLite, remote/local MongoDB, MySQL server, pickled or even CSV files.
     """
 
+    # @abstractmethod
+    # def dump(self,):
+    #     """Dump component"""
+
     @abstractmethod
     def store(self, data, fields=None, training_data_uuid='', check_dup=True):
         """
