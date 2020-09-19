@@ -5,7 +5,7 @@ import tatu
 NAME = "tatu"
 
 
-VERSION = tatu.__version__
+VERSION = 0.1
 
 
 AUTHOR = 'Davi Pereira dos Santos'
