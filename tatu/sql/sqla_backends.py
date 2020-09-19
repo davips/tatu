@@ -9,9 +9,7 @@ class MySQLA(SQLA):
         if "-" in db:
             raise Exception("'-' not allowed in url!")  # because of db name
         # TIP: latin1 is to ensure 1 byte per char when storing UUIDs.
-        self.engine = sa.create_engine('mysql+pymysql://' + db,
-                                       encoding='latin1',
-                                       pool_recycle=3600, echo=True)
+        self.engine = sa.create_engine("mysql+pymysql://" + db, encoding="utf8", pool_recycle=3600, echo=True)
         super().__init__()
 
 
@@ -30,8 +28,7 @@ class SQLiteA(SQLA):
         else:
             db += ".db"
         # TIP: latin1 is to ensure 1 byte per char when storing UUIDs.
-        self.engine = sa.create_engine('sqlite:///' + db, encoding='latin1',
-                                       echo=True)
+        self.engine = sa.create_engine("sqlite:///" + db, encoding="utf8", echo=True)
 
         @event.listens_for(self.engine, "connect")
         def do_connect(dbapi_connection, connection_record):

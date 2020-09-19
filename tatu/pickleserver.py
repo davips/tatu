@@ -16,22 +16,17 @@ from cururu.persistence import (
     UnlockedEntryException,
 )
 
-import _pickle as pickle
-from pathlib import Path
-from glob import glob
 
 class PickleServer(Persistence):
-    def __init__(self, db='/tmp/cururu', optimize='speed'):
+    def __init__(self, db="/tmp/cururu", compress=True):
         self.db = db
-        self.optimize = optimize
-        self.speed = optimize == 'speed'  # vs 'space'
+        self.compress = compress
         if not Path(db).exists():
             os.mkdir(db)
 
-    def _fetch_impl(self, hollow_data, fields=None, training_data_uuid='',
-              lock=False):
+    def _fetch_impl(self, data: Data, lock: bool = False) -> Optional[Data]:
         # TODO: deal with fields and missing fields?
-        filename = self._filename('*', hollow_data, training_data_uuid)
+        filename = self._filename("*", data)
 
         # Not started yet?
         if not Path(filename).exists():
@@ -54,17 +49,13 @@ class PickleServer(Persistence):
 
         return transformed_data
 
-    def store(self, data, fields=None, training_data_uuid='', check_dup=True):
+    def store(self, data, check_dup=True):
         """The dataset name of data_out will be the filename prefix for
         convenience."""
-        # TODO: deal with fields and missing fields?
-        if fields is None:
-            fields = ['X', 'Y']
 
         # TODO: reput name on Data?
-
-        filename = self._filename('name', data, training_data_uuid)
-       # filename = self._filename(data.name, data, training_data_uuid)
+        filename = self._filename("", data)
+        # filename = self._filename(data.name, data, training_data_uuid)
 
         # sleep(0.020)  # Latency simulator.
 
@@ -72,33 +63,32 @@ class PickleServer(Persistence):
         if check_dup and Path(filename).exists():
             raise DuplicateEntryException("Already exists:", filename)
 
-        locked = self._filename('', data, training_data_uuid)
+        locked = self._filename("", data)
         if Path(locked).exists():
             os.remove(locked)
 
         self._dump(data, filename)
 
-    def list_by_name(self, substring, only_original=True):
+    def list_by_name(self, substring, only_original=True):  # TODO: take advantage of lazy data, instead of using hollow
         datas = []
         path = self.db + f"/*{substring}*-*.dump"
         for file in sorted(glob(path), key=os.path.getmtime):
             data = self._load(file)
             if only_original and data.history.size == 1:
-                datas.append(data.hollow)
+                datas.append(data.hollow(tuple()))
         return datas
 
-    def fetch_matrix(self, name):
+    def fetch_matrix(self, id):
         raise NotImplementedError
 
-
-    def _filename(self, prefix, data, training_data_uuid=''):
-        uuids = [tr.sid for tr in data.history]
-        rest = f'-{training_data_uuid}-' + '-'.join(uuids) + \
-               f'.{self.optimize}.dump'
-        if prefix == '*':
-            query = self.db + '/*' + rest
-
-
+    def _filename(self, prefix, data):
+        zip = "compressed" if self.compress else ""
+        # Not very efficient.  TODO: memoize extraction of fields from JSON?
+        # uuids = [json.loads(tr)['uuid'][:6] for tr in data.history]
+        # rest = f"-".join(uuids) + f".{zip}.dump"
+        rest = f"{data.id}.{zip}.dump"
+        if prefix == "*":
+            query = self.db + "/*" + rest
             lst = glob(query)
             if len(lst) > 1:
                 raise Exception("Multiple files found:", query, lst)
@@ -116,13 +106,13 @@ class PickleServer(Persistence):
         :return: Data
         """
         try:
-            if self.speed:
-                f = open(filename, 'rb')
+            if self.compress:
+                return load(filename)
+            else:
+                f = open(filename, "rb")
                 res = pickle.load(f)
                 f.close()
                 return res
-            else:
-                return load(filename)
         except Exception as e:
             traceback.print_exc()
             print("Problems loading", filename)
@@ -135,13 +125,13 @@ class PickleServer(Persistence):
         :param filename: file dataset
         :return: None
         """
-        print('W: Storing...', filename)
-        if self.speed:
-            f = open(filename, 'wb')
+        print("W: Storing...", filename)
+        if self.compress:
+            save(filename, data)
+        else:
+            f = open(filename, "wb")
             pickle.dump(data, f)
             f.close()
-        else:
-            save(filename, data)
 
     def unlock(self, data, training_data_uuid=""):
         filename = self._filename("*", data, training_data_uuid)
