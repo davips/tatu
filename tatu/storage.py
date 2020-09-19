@@ -1,10 +1,7 @@
-from cururu.amnesia import Amnesia
-from cururu.persistence import Persistence
-from cururu.pickleserver import PickleServer
-from cururu.worker2 import Worker2
-from pjdata.config import STORAGE_CONFIG
-from pjdata.types import Data
-
+from tatu.amnesia import Amnesia
+from tatu.persistence import Persistence
+from tatu.pickleserver import PickleServer
+from tatu.worker2 import Worker2
 
 class Storage(Worker2, Persistence):
     """Multithreaded* persistence.

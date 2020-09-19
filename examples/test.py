@@ -1,12 +1,11 @@
 # Listar *iris*
 import json
 from zipfile import ZipFile
-from cururu.persistence import DuplicateEntryException
-from cururu.pickleserver import PickleServer
-from cururu.sql.mysql import MySQL
-from pjdata.aux.uuid import UUID
-from pjdata.content.specialdata import UUIDData
-from pjdata.creation import read_arff
+from tatu.persistence import DuplicateEntryException
+from tatu.pickleserver import PickleServer
+from tatu.sql.mysql import MySQL
+from aiuna.content.specialdata import UUIDData
+from aiuna.creation import read_arff
 
 lst = PickleServer().list_by_name('iris')
 for phantom in lst:

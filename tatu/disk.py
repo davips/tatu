@@ -1,4 +1,4 @@
-from pjdata.aux.compression import pack, unpack
+from aiuna.compression import pack, unpack
 
 
 def save(filename, obj):

@@ -5,11 +5,11 @@ from threading import Thread
 from time import sleep
 from typing import Optional
 
-from cururu.persistence import Persistence, DuplicateEntryException, LockedEntryException
-from pjdata.aux.compression import unpack, pack
-from pjdata.aux.uuid import UUID
-from pjdata.content.data import Data
-from pjdata.history import History
+from tatu.persistence import Persistence, DuplicateEntryException, LockedEntryException
+from aiuna.compression import unpack, pack
+from cruipto.uuid import UUID
+from aiuna.content.data import Data
+from aiuna.history import History
 
 
 class SQL(Persistence):

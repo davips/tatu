@@ -3,12 +3,9 @@ import os
 import traceback
 from glob import glob
 from pathlib import Path
-from typing import Optional
 
-from pjdata.types import Data
-
-from cururu.disk import save, load
-from cururu.persistence import (
+from tatu.disk import save, load
+from tatu.persistence import (
     Persistence,
     LockedEntryException,
     FailedEntryException,

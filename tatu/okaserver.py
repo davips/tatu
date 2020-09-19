@@ -3,9 +3,8 @@ from io import BytesIO
 
 import requests
 
-from cururu.persistence import Persistence
-from pjdata.aux.compression import pack, unpack
-from pjdata.types import Data
+from tatu.persistence import Persistence
+from aiuna.compression import pack, unpack
 
 
 class OkaServer(Persistence):

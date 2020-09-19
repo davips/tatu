@@ -1,5 +1,4 @@
-from cururu.persistence import Persistence
-from pjdata.types import Data
+from tatu.persistence import Persistence
 
 
 class Amnesia(Persistence):

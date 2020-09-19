@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 
-from pjdata.aux.uuid import UUID
-from pjdata.content.specialdata import UUIDData
-from pjdata.transformer.transformer import Transformer
-from pjdata.types import Data
+from cruipto.uuid import UUID
+from aiuna.content.specialdata import UUIDData
+from transf.transformer.transformer import Transformer
 
 
 class Persistence(ABC):
@@ -105,7 +104,7 @@ class Persistence(ABC):
         data = None
         lastuuid = UUID(id_)
         firstdata = self.fetch(UUIDData(lastuuid))
-        # TODO: solve this check in pjdata
+        # TODO: solve this check in aiuna
         if firstdata.history is None:
             firstdata.history = []
         history = (list(firstdata.history) == 0) or firstdata.historystr

@@ -6,8 +6,6 @@ from sqlalchemy_utils import database_exists, create_database
 
 from cururu.persistence import Persistence
 
-from pjdata.types import Data
-
 
 class SQLA(Persistence):
     engine = None
@@ -28,7 +26,7 @@ class SQLA(Persistence):
         # TODO: verify if pure mysql is faster
 
     def store(self, data: Data, check_dup: bool = True):
-        # TODO: merge pjdata.Data with sql.Data to have a single class and
+        # TODO: merge Data with sql.Data to have a single class and
         #  avoid having to copy the properties.
         da = DataSQLA(id=data.uuid.id, names=data.matrix_names_str, matrices=data.ids_str, history=data.history_str)
         self.session.add(da)
@@ -45,7 +43,7 @@ class SQLA(Persistence):
         d = self.session.query(DataSQLA).filter_by(id=data.uuid.id).first()
         if d is None:
             return None
-        NoData.updated(d.history_str)
+        NoData.replace(d.history_str)
 
     def list_by_name(self, substring, only_historyless=True):
         pass
