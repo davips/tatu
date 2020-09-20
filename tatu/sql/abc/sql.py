@@ -107,21 +107,11 @@ class SQL(Persistence):
         # TODO: deserializar antes de por no histórico
         history = History(serialized_tranfs)
 
-        # TODO: failure and frozen should be stored/fetched!
+        # TODO: failure and timeout should be stored/fetched!
         # TODO: would it be worth to update uuid/uuids here, instead of recalculating it from the start at Data.init?
         uuids = data.uuids
         uuids.update(dict(zip(names, map(UUID, mids))))
-        return Data(
-            uuid=uuid,
-            uuids=uuids,
-            history=history,
-            failure=None,
-            frozen=False,
-            hollow=False,
-            stream=None,
-            storage_info=self.storage_info,
-            **matrices,
-        )
+        return Data(uuid=uuid, uuids=uuids, history=history, failure=None, storage_info=self.storage_info, **matrices)
 
     def fetch_matrix(self, id):
         # TODO: quando faz select em algo que não existe, fica esperando
