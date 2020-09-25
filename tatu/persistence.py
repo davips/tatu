@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
+from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from aiuna.content.specialdata import UUIDData
-from transf.transformer.transformer import Transformer
 
 
 class Persistence(ABC):

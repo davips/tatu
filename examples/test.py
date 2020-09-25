@@ -12,7 +12,7 @@ for phantom in lst:
     print(phantom)
 
 # Armazenar dataset, sem depender do pacote pjml.
-from cururu.pickleserver import PickleServer
+from tatu.pickleserver import PickleServer
 
 print('Storing iris...')
 data = 0

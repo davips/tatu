@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists, create_database
 
-from cururu.persistence import Persistence
+from tatu.persistence import Persistence
 
 
 class SQLA(Persistence):

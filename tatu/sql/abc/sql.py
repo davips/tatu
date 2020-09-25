@@ -47,7 +47,7 @@ class SQL(Persistence):
 
         # Insert history.  #TODO: would a transaction be faster here?
         for transf in data.history:
-            self.store_dump(transf.id, pack(transf.serialized))
+            self.store_dump(transf.id, pack(transf.jsonable))  #<- TODO serialized?
 
         # Create row at table 'data'. ---------------------
         sql = f"insert into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
@@ -219,7 +219,7 @@ class SQL(Persistence):
     def store_dump(self, duid, value):
         """Store the given pair uuid-dump of a matrix/vector."""
         sql = f"insert or ignore into dump values (null, ?, ?)"
-        from cururu.sql.sqlite import SQLite
+        from tatu.sql.sqlite import SQLite
 
         dump = memoryview(value) if isinstance(self, SQLite) else value
         with warnings.catch_warnings():
@@ -252,7 +252,7 @@ class SQL(Persistence):
             return
         if args is None:
             args = []
-        from cururu.sql.mysql import MySQL
+        from tatu.sql.mysql import MySQL
 
         msg = self._interpolate(sql, args)
         if self.debug:

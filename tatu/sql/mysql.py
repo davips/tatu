@@ -3,7 +3,7 @@ import socket
 import pymysql
 import pymysql.cursors
 
-from cururu.sql.abc.sql import SQL
+from tatu.sql.abc.sql import SQL
 
 
 class MySQL(SQL):
@@ -55,6 +55,8 @@ class MySQL(SQL):
         if self.debug:
             print("using database", self.db, "on", self.database, "...")
         self.cursor.execute("use " + self.db)
+        self.query(f"show tables")
+        setup = not bool(self.get_all())
 
         if setup:
             self._setup()

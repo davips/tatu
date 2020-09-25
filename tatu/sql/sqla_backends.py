@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy import event
 
-from cururu.sql.abc.sqla import SQLA
+from tatu.sql.abc.sqla import SQLA
 
 
 class MySQLA(SQLA):

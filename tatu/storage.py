@@ -50,24 +50,24 @@ class Storage(Worker2, Persistence):
         if engine == "amnesia":
             return Amnesia()
         elif engine == "mysql":
-            from cururu.sql.mysql import MySQL
+            from tatu.sql.mysql import MySQL
             # TODO: does mysql already have extra settings now?
             return MySQL(storage_info=alias, **kwargs)
         elif engine == "okapost":
-            from cururu.okaserver import OkaServer
+            from tatu.okaserver import OkaServer
             return OkaServer(storage_info=alias, post=True, **kwargs)
         elif engine == "oka":
-            from cururu.okaserver import OkaServer
+            from tatu.okaserver import OkaServer
             return OkaServer(storage_info=alias, post=False, **kwargs)
         elif engine == "sqlite":
-            from cururu.sql.sqlite import SQLite
+            from tatu.sql.sqlite import SQLite
             return SQLite(storage_info=alias, **kwargs)
         elif engine == "mysqla":
-            from cururu.sql.sqla_backends import MySQLA
+            from tatu.sql.sqla_backends import MySQLA
             # TODO: does mysql already have extra settings now?
             return MySQLA(**kwargs)
         elif engine == "sqlitea":
-            from cururu.sql.sqla_backends import SQLiteA
+            from tatu.sql.sqla_backends import SQLiteA
             return SQLiteA(**kwargs)
         elif engine == "dump":
             return PickleServer(**kwargs)

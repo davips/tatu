@@ -1,7 +1,7 @@
 import socket
 import sqlite3
 
-from cururu.sql.abc.sql import SQL
+from tatu.sql.abc.sql import SQL
 
 
 class SQLite(SQL):
