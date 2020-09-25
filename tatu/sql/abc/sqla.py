@@ -43,7 +43,7 @@ class SQLA(Persistence):
         d = self.session.query(DataSQLA).filter_by(id=data.uuid.id).first()
         if d is None:
             return None
-        NoData.replace(d.history_str)
+        Root.replace(d.history_str)
 
     def list_by_name(self, substring, only_historyless=True):
         pass
