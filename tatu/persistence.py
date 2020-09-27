@@ -111,15 +111,15 @@ class Persistence(ABC):
         if folder:
             lastuuid.generate_avatar(f"{folder}/{f'{id_}.jpg'}")
         lst = []
-        for transformer in history:
-            if isinstance(transformer, Transformer):
-                name = transformer.name
-                transformeruuid = transformer.uuid
+        for step in history:
+            if isinstance(step, Step):
+                name = step.name
+                transformeruuid = step.uuid
             else:
-                name = transformer["name"]
-                transformeruuid = transformer["uuid"]
+                name = step["name"]
+                transformeruuid = step["uuid"]
             dic = {
-                "label": uuid.id, "name": name, "help": str(transformer), "stored": data is not None
+                "label": uuid.id, "name": name, "help": str(step), "stored": data is not None
             }
             if folder:
                 filename = f"{uuid}.jpg"
