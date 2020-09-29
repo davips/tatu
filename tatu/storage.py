@@ -1,7 +1,10 @@
+from aiuna.config import STORAGE_CONFIG
+from aiuna.content.data import Data
 from tatu.amnesia import Amnesia
 from tatu.persistence import Persistence
 from tatu.pickleserver import PickleServer
 from tatu.worker2 import Worker2
+
 
 class Storage(Worker2, Persistence):
     """Multithreaded* persistence.
@@ -22,10 +25,10 @@ class Storage(Worker2, Persistence):
         super().__init__()
         self.alias = alias
 
-    def store(self, data: Data, check_dup: bool = True):
+    def store(self, data: Data, check_dup=True):
         self.put("store", locals())
 
-    def _fetch_impl(self, data: Data, lock: bool = False) -> Data:
+    def _fetch_impl(self, data: Data, lock=False) -> Data:
         return self.put("fetch", locals(), wait=True)
 
     def fetch_matrix(self, id):

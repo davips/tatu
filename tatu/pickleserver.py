@@ -3,7 +3,9 @@ import os
 import traceback
 from glob import glob
 from pathlib import Path
+from typing import Optional
 
+from aiuna.content.data import Data
 from tatu.disk import save, load
 from tatu.persistence import (
     Persistence,
@@ -21,7 +23,7 @@ class PickleServer(Persistence):
         if not Path(db).exists():
             os.mkdir(db)
 
-    def _fetch_impl(self, data: Data, lock: bool = False) -> Optional[Data]:
+    def _fetch_impl(self, data: Data, lock = False) -> Optional[Data]:
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 

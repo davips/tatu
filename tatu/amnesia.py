@@ -1,8 +1,9 @@
+from aiuna.content.data import Data
 from tatu.persistence import Persistence
 
 
 class Amnesia(Persistence):
-    def store(self, data: Data, check_dup: bool = True):
+    def store(self, data: Data, check_dup = True):
         pass
 
     def fetch_matrix(self, id):
@@ -14,5 +15,5 @@ class Amnesia(Persistence):
     def list_by_name(self, substring, only_historyless=True):
         return []
 
-    def _fetch_impl(self, data: Data, lock: bool = False) -> Data:
+    def _fetch_impl(self, data: Data, lock = False) -> Data:
         pass
