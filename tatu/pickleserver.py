@@ -23,7 +23,7 @@ class PickleServer(Persistence):
         if not Path(db).exists():
             os.mkdir(db)
 
-    def _fetch_impl(self, data: Data, lock = False) -> Optional[Data]:
+    def _fetch_impl(self, data: Data, lock=False) -> Optional[Data]:
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 
@@ -106,12 +106,13 @@ class PickleServer(Persistence):
         """
         try:
             if self.compress:
-                return load(filename)
+                data = load(filename)
             else:
                 f = open(filename, "rb")
                 res = pickle.load(f)
                 f.close()
-                return res
+                data = res
+            return data.unpicklable_()
         except Exception as e:
             traceback.print_exc()
             print("Problems loading", filename)
@@ -125,6 +126,7 @@ class PickleServer(Persistence):
         :return: None
         """
         print("W: Storing...", filename)
+        data = data.picklable
         if self.compress:
             save(filename, data)
         else:
@@ -133,7 +135,7 @@ class PickleServer(Persistence):
             f.close()
 
     def unlock(self, data, training_data_uuid=""):
-        filename = self._filename("*", data, training_data_uuid)
+        filename = self._filename("*", data)
         if not Path(filename).exists():
             raise UnlockedEntryException("Cannot unlock something that is not " "locked!", filename)
         print("W: Unlocking...", filename)

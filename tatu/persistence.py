@@ -45,7 +45,7 @@ class Persistence(ABC):
     def _fetch_impl(self, data: Data, lock: bool = False) -> Data:
         pass
 
-    def fetch(self, data: Data, lock: bool = False) -> Data:
+    def fetch(self, data: Data, lock=False) -> Data:
         """Fetch data from DB.
 
         Parameters
