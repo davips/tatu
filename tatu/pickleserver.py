@@ -17,7 +17,7 @@ from tatu.persistence import (
 
 
 class PickleServer(Persistence):
-    def __init__(self, db="/tmp/cururu", compress=True):
+    def __init__(self, db="/tmp/tatu", compress=True):
         self.db = db
         self.compress = compress
         if not Path(db).exists():
@@ -112,7 +112,7 @@ class PickleServer(Persistence):
                 res = pickle.load(f)
                 f.close()
                 data = res
-            return data.unpicklable_()
+            return data.unpicklable
         except Exception as e:
             traceback.print_exc()
             print("Problems loading", filename)

@@ -95,7 +95,7 @@ class Persistence(ABC):
         pass
 
     @abstractmethod
-    def unlock(self, data, training_data_uuid=None):
+    def unlock(self, data):
         pass
 
     def visual_history(self, id_, folder=None):

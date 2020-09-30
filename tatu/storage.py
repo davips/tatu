@@ -26,16 +26,16 @@ class Storage(Worker2, Persistence):
         self.alias = alias
 
     def store(self, data: Data, check_dup=True):
-        self.put("store", locals())
+        self.put("store", {"data": data.picklable, "check_dup": check_dup})
 
     def _fetch_impl(self, data: Data, lock=False) -> Data:
-        return self.put("fetch", locals(), wait=True)
+        return self.put("fetch", {"data": data.picklable, "lock": lock}, wait=True)
 
     def fetch_matrix(self, id):
-        return self.put("fetch_matrix", locals(), wait=True)
+        return self.put("fetch_matrix", {"id": id}, wait=True)
 
-    def unlock(self, data, training_data_uuid=None):
-        self.put("unlock", locals())
+    def unlock(self, data):
+        self.put("unlock", {"data": data.picklable})
 
     def list_by_name(self, substring, only_historyless=True):
         pass
@@ -47,7 +47,7 @@ class Storage(Worker2, Persistence):
 
     @staticmethod
     def backend(alias):
-        kwargs = STORAGE_CONFIG.get(alias, {})
+        kwargs = STORAGE_CONFIG.get(alias, {}).copy()
         engine = kwargs.pop("engine") if "engine" in kwargs else alias
 
         if engine == "amnesia":
@@ -65,13 +65,6 @@ class Storage(Worker2, Persistence):
         elif engine == "sqlite":
             from tatu.sql.sqlite import SQLite
             return SQLite(storage_info=alias, **kwargs)
-        elif engine == "mysqla":
-            from tatu.sql.sqla_backends import MySQLA
-            # TODO: does mysql already have extra settings now?
-            return MySQLA(**kwargs)
-        elif engine == "sqlitea":
-            from tatu.sql.sqla_backends import SQLiteA
-            return SQLiteA(**kwargs)
         elif engine == "dump":
             return PickleServer(**kwargs)
         else:

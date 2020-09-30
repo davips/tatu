@@ -28,9 +28,9 @@ class Worker2:
             self.lock = self.thread_lock
             self.klass = threading.Thread
 
-    def put(self, method_name, locals_=None, wait=False):
+    # noinspection PyDefaultArgument
+    def put(self, method_name, kwargs={}, wait=False):
         """Add a new function to the queue to be executed."""
-        kwargs = self._prepare_args(locals_) if locals_ else {}
         tup = method_name, kwargs, wait
         self.queue.put(tup)
 
@@ -80,12 +80,6 @@ class Worker2:
             # else:
             #     break
         self.lock.release()
-
-    @staticmethod
-    def _prepare_args(locals_):
-        locals_ = locals_.copy()
-        del locals_["self"]
-        return locals_
 
     @staticmethod
     @abstractmethod
