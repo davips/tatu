@@ -1,3 +1,5 @@
+from typing import Optional
+
 from aiuna.config import STORAGE_CONFIG
 from aiuna.content.data import Data
 from tatu.amnesia import Amnesia
@@ -28,7 +30,7 @@ class Storage(Worker2, Persistence):
     def store(self, data: Data, check_dup=True):
         self.put("store", {"data": data.picklable, "check_dup": check_dup})
 
-    def _fetch_impl(self, data: Data, lock=False) -> Data:
+    def _fetch_pickable_impl(self, data: Data, lock=False) -> Optional[Data]:
         return self.put("fetch", {"data": data.picklable, "lock": lock}, wait=True)
 
     def fetch_matrix(self, id):

@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from aiuna.content.specialdata import UUIDData
+from transf.absdata import AbsData
 
 
 class Persistence(ABC):
@@ -41,11 +43,7 @@ class Persistence(ABC):
         """
         pass
 
-    @abstractmethod
-    def _fetch_impl(self, data: Data, lock: bool = False) -> Data:
-        pass
-
-    def fetch(self, data: Data, lock=False) -> Data:
+    def fetch(self, data: Data, lock=False) -> AbsData:
         """Fetch data from DB.
 
         Parameters
@@ -66,7 +64,17 @@ class Persistence(ABC):
         """
         if not data.ishollow:
             raise Exception("Persistence expects a hollow Data object!")
-        return self._fetch_impl(data, lock)
+        data = self._fetch_pickable_impl(data, lock)
+        return data and data.unpicklable
+
+    def fetch_pickable(self, data: Data, lock=False) -> Optional[AbsData]:
+        if not data.ishollow:
+            raise Exception("Persistence expects a hollow Data object!")
+        return self._fetch_pickable_impl(data, lock)
+
+    @abstractmethod
+    def _fetch_pickable_impl(self, data: Data, lock=False) -> Optional[Data]:
+        pass
 
     @abstractmethod
     def fetch_matrix(self, id):

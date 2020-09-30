@@ -14,6 +14,7 @@ from tatu.persistence import (
     DuplicateEntryException,
     UnlockedEntryException,
 )
+from transf.absdata import AbsData
 
 
 class PickleServer(Persistence):
@@ -23,7 +24,7 @@ class PickleServer(Persistence):
         if not Path(db).exists():
             os.mkdir(db)
 
-    def _fetch_impl(self, data: Data, lock=False) -> Optional[Data]:
+    def _fetch_pickable_impl(self, data: Data, lock=False) -> Optional[Data]:
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 
@@ -73,7 +74,7 @@ class PickleServer(Persistence):
         path = self.db + f"/*{substring}*-*.dump"
         for file in sorted(glob(path), key=os.path.getmtime):
             data = self._load(file)
-            if only_original and data.history.size == 1:
+            if only_original and len(data.history) == 1:
                 datas.append(data.hollow(tuple()))
         return datas
 
@@ -112,7 +113,7 @@ class PickleServer(Persistence):
                 res = pickle.load(f)
                 f.close()
                 data = res
-            return data.unpicklable
+            return data
         except Exception as e:
             traceback.print_exc()
             print("Problems loading", filename)
