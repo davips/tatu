@@ -11,13 +11,14 @@ lst = PickleServer().list_by_name('iris')
 for phantom in lst:
     print(phantom)
 
-# Armazenar dataset, sem depender do pacote pjml.
+# Armazenar dataset, sem depender do tatu.
 from tatu.pickleserver import PickleServer
 
 print('Storing iris...')
 data = 0
 try:
-    data = read_arff('iris.arff')[1]
+    data = read_arff('iris.arff')
+    ???
     PickleServer().store(data)
 except DuplicateEntryException:
     print('Duplicate! Ignored.')

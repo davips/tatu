@@ -5,6 +5,7 @@ from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from aiuna.content.specialdata import UUIDData
 from transf.absdata import AbsData
+from transf.step import Step
 
 
 class Persistence(ABC):
@@ -19,7 +20,7 @@ class Persistence(ABC):
     #     """Dump component"""
 
     @abstractmethod
-    def store(self, data: Data, check_dup: bool = True):
+    def store(self, data: Data, check_dup=True):
         """
         Parameters
         ----------
@@ -110,12 +111,15 @@ class Persistence(ABC):
         """List with all steps/Data objects before the current one. The current avatar is also generated."""
         uuid = UUID()
         data = None
-        lastuuid = UUID(id_)
+        lastuuid = UUID(id_) if isinstance(id_, str) else id_
         firstdata = self.fetch(UUIDData(lastuuid))
+        if firstdata is None:
+            print(f"Data {id_} not found!")
+            exit()
         # TODO: solve this check in aiuna
         if firstdata.history is None:
             firstdata.history = []
-        history = (list(firstdata.history) == 0) or firstdata.historystr
+        history = (list(firstdata.history) == 0) or firstdata.history
         if folder:
             lastuuid.generate_avatar(f"{folder}/{f'{id_}.jpg'}")
         lst = []
@@ -158,3 +162,8 @@ class FailedEntryException(Exception):
 class DuplicateEntryException(Exception):
     """This input data and transformation combination have already been inserted
     before."""
+
+
+# PickleServer().store(File("iris.arff").data)
+# print(PickleServer().visual_history(File("iris.arff").data.id))
+# exit()
