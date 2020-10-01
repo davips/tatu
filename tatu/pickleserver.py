@@ -18,7 +18,7 @@ from transf.absdata import AbsData
 
 
 class PickleServer(Persistence):
-    def __init__(self, db="/tmp/tatu", compress=True):
+    def __init__(self, db="tatu-sqlite", compress=True):
         self.db = db
         self.compress = compress
         if not Path(db).exists():

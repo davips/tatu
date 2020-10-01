@@ -5,7 +5,7 @@ from tatu.sql.abc.sql import SQL
 
 
 class SQLite(SQL):
-    def __init__(self, db="/tmp/tatu", storage_info=None, debug=not False, read_only=False):
+    def __init__(self, db="tatu-sqlite", storage_info=None, debug=not False, read_only=False):
         self.info = db
         self.read_only = read_only
         self.hostname = socket.gethostname()
