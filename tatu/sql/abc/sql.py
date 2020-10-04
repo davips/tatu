@@ -1,15 +1,12 @@
-import json
 import warnings
 from abc import abstractmethod
-from threading import Thread
-from time import sleep
 from typing import Optional
 
-from tatu.persistence import Persistence, DuplicateEntryException, LockedEntryException
 from aiuna.compression import unpack, pack
-from cruipto.uuid import UUID
 from aiuna.content.data import Data
 from aiuna.history import History
+from cruipto.uuid import UUID
+from tatu.persistence import Persistence, DuplicateEntryException, LockedEntryException
 
 
 class SQL(Persistence):
@@ -47,7 +44,7 @@ class SQL(Persistence):
 
         # Insert history.  #TODO: would a transaction be faster here?
         for transf in data.history:
-            self.store_dump(transf.id, pack(transf.jsonable))  #<- TODO serialized?
+            self.store_dump(transf.id, pack(transf.jsonable))  # <- TODO serialized?
 
         # Create row at table 'data'. ---------------------
         sql = f"insert into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
@@ -289,6 +286,10 @@ class SQL(Persistence):
         lst = [str(w)[:100] for w in lst0]
         zipped = zip(sql.replace("?", '"?"').split("?"), map(str, lst + [""]))
         return "".join(list(sum(zipped, ()))).replace('"None"', "NULL")
+
+    def insert_many(self, list_of_tuples):
+        query = "INSERT INTO parent VALUES(%s, %s)"
+        self.cursor.executemany(query, list_of_tuples)
 
     # FOREIGN KEY (attr) REFERENCES attr(aid)
     # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
