@@ -1,9 +1,12 @@
+import threading
 from abc import ABC, abstractmethod
+from multiprocessing import JoinableQueue, Queue
+from queue import Empty
 from typing import Optional
 
-from aiuna.content.data import Data
-from cruipto.uuid import UUID
+from aiuna.content.data import Data, PickableData
 from aiuna.content.specialdata import UUIDData
+from cruipto.uuid import UUID
 from transf.absdata import AbsData
 from transf.step import Step
 
@@ -14,23 +17,65 @@ class Persistence(ABC):
     The children classes are expected to provide storage in e.g.:
      SQLite, remote/local MongoDB, MySQL server, pickled or even CSV files.
     """
+    queue = Queue()
+    outqueue = JoinableQueue()
+    # process_lock = multiprocessing.Lock()
+    thread_lock = threading.Lock()
+    mythread = None
+
+    # Time spent hoping the thread will be useful again.
+
+    def __init__(self, timeout=2):
+        self.timeout = timeout
+        if self.__class__.mythread is None:
+            # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
+            self.__class__.mythread = threading.Thread(target=self._worker, daemon=False)
+            print("nnnova.........")
+            self.mythread.start()
+
+    def _worker(self):
+        print("work.....")
+        while True:
+            try:
+                print("........get")
+                job = self.queue.get(timeout=self.timeout)
+                if "store" in job:
+                    print("........store")
+                    self._store_(job["store"], job["check_dup"])
+                    print("........storeddddddddd")
+                elif "fetch" in job:
+                    print("........fetch")
+                    # if self.queue.empty()
+                    ret = self._fetch_pickable_(job["fetch"], job["lock"])
+                    self.outqueue.put(ret)
+                    self.outqueue.join()
+                else:
+                    print("Unexpected job:", job)
+            except Empty:
+                break
+            # else:
+            #     break
+
+    # @classmethod
+    # @contextmanager
+    # def safety(cls):
+    #     with cls.thread_lock:  # , cls.process_lock:
+    #         yield
 
     # @abstractmethod
     # def dump(self,):
     #     """Dump component"""
 
     @abstractmethod
+    def _store_(self, data: Data, check_dup=True):
+        pass
+
     def store(self, data: Data, check_dup=True):
         """
         Parameters
         ----------
-        blocking
-        training_data_uuid
         data
             Data object to store.
-        fields
-            List of names of the matrices to store (for performance reasons).
-            When None, store them all.
         check_dup
             Whether to waste time checking duplicates
 
@@ -42,7 +87,7 @@ class Persistence(ABC):
         ---------
         DuplicateEntryException
         """
-        pass
+        self.queue.put({"store": data.picklable, "check_dup": check_dup})
 
     def fetch(self, data: Data, lock=False) -> AbsData:
         """Fetch data from DB.
@@ -65,20 +110,33 @@ class Persistence(ABC):
         """
         if not data.ishollow:
             raise Exception("Persistence expects a hollow Data object!")
-        data = self._fetch_pickable_impl(data, lock)
+        data = self.fetch_pickable(data, lock)
         return data and data.unpicklable
 
-    def fetch_pickable(self, data: Data, lock=False) -> Optional[AbsData]:
+    def fetch_pickable(self, data: Data, lock=False) -> Optional[PickableData]:
         if not data.ishollow:
             raise Exception("Persistence expects a hollow Data object!")
-        return self._fetch_pickable_impl(data, lock)
+        self.queue.put({"fetch": data.picklable, "lock": lock})
+
+        # Wait for result.
+        try:
+            ret = self.outqueue.get()
+            self.outqueue.task_done()
+            return ret
+        except Exception as e:
+            print("Problem while expecting storage reply:", e)
+            try:
+                self.outqueue.get()
+                self.outqueue.task_done()
+            finally:
+                exit(0)
 
     @abstractmethod
-    def _fetch_pickable_impl(self, data: Data, lock=False) -> Optional[Data]:
+    def _fetch_pickable_(self, data: Data, lock=False) -> Optional[Data]:
         pass
 
     @abstractmethod
-    def fetch_matrix(self, id):
+    def fetch_matrix(self, _id):
         pass
 
     @abstractmethod
@@ -164,6 +222,3 @@ class DuplicateEntryException(Exception):
     before."""
 
 
-# PickleServer().store(File("iris.arff").data)
-# print(PickleServer().visual_history(File("iris.arff").data.id))
-# exit()

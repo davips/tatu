@@ -5,7 +5,8 @@ from glob import glob
 from pathlib import Path
 from typing import Optional
 
-from aiuna.content.data import Data
+from aiuna.content.data import Data, PickableData
+from aiuna.file import File
 from tatu.disk import save, load
 from tatu.persistence import (
     Persistence,
@@ -14,17 +15,17 @@ from tatu.persistence import (
     DuplicateEntryException,
     UnlockedEntryException,
 )
-from transf.absdata import AbsData
 
 
 class PickleServer(Persistence):
     def __init__(self, db="tatu-sqlite", compress=True):
+        super().__init__(timeout=1)
         self.db = db
         self.compress = compress
         if not Path(db).exists():
             os.mkdir(db)
 
-    def _fetch_pickable_impl(self, data: Data, lock=False) -> Optional[Data]:
+    def _fetch_pickable_(self, data: Data, lock=False) -> Optional[PickableData]:
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 
@@ -49,7 +50,7 @@ class PickleServer(Persistence):
 
         return transformed_data
 
-    def store(self, data, check_dup=True):
+    def _store_(self, data, check_dup=True):
         """The dataset name of data_out will be the filename prefix for
         convenience."""
 
@@ -141,3 +142,8 @@ class PickleServer(Persistence):
             raise UnlockedEntryException("Cannot unlock something that is not " "locked!", filename)
         print("W: Unlocking...", filename)
         os.remove(filename)
+
+
+# PickleServer().store(File("iris.arff").data)
+# print(PickleServer().visual_history(File("iris.arff").data.id))
+# exit()
