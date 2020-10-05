@@ -12,7 +12,7 @@ class SQLite(SQL):
         self.database = db + ".db"
         self.storage_info = storage_info
         self.debug = debug
-        self._open()
+        super().__init__(timeout=2)
 
     def _open(self):
         # isolation_level=None -> SQLite autocommiting

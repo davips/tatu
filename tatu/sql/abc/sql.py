@@ -1,12 +1,13 @@
+import json
 import warnings
 from abc import abstractmethod
 from typing import Optional
 
 from aiuna.compression import unpack, pack
-from aiuna.content.data import Data
-from aiuna.history import History
+from aiuna.content.data import Data, PickableData
 from cruipto.uuid import UUID
 from tatu.persistence import Persistence, DuplicateEntryException, LockedEntryException
+from transf.customjsonencoder import CustomJSONEncoder
 
 
 class SQL(Persistence):
@@ -14,7 +15,7 @@ class SQL(Persistence):
     storage_info = None
 
     # TODO: remove training_data_uuid from here and put it inside transformations
-    def store(self, data: Data, check_dup: bool = True):
+    def _store_(self, data: Data, check_dup: bool = True):
         # The sequence of queries is planned to minimize traffic and CPU load,
         # otherwise it would suffice to just send 'insert or ignore' of dumps.
         uuid = data.uuid
@@ -44,7 +45,8 @@ class SQL(Persistence):
 
         # Insert history.  #TODO: would a transaction be faster here?
         for transf in data.history:
-            self.store_dump(transf.id, pack(transf.jsonable))  # <- TODO serialized?
+            dump = pack(json.dumps(transf["desc"], sort_keys=True, ensure_ascii=False, cls=CustomJSONEncoder))
+            self.store_dump(transf["id"], dump)
 
         # Create row at table 'data'. ---------------------
         sql = f"insert into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
@@ -66,7 +68,7 @@ class SQL(Persistence):
         # else:
         print(f": Data inserted", uuid)
 
-    def _fetch_impl(self, data: Data, lock: bool = False) -> Data:
+    def _fetch_pickable_(self, data: Data, lock=False) -> Optional[PickableData]:
         # Fetch data info.
         uuid = data.uuid
         self.query(f"select * from data where id=?", [uuid.id])
@@ -100,15 +102,17 @@ class SQL(Persistence):
                 matrices[name_by_mid[mid]] = UUID(mid)
 
         # Fetch history.
-        serialized_tranfs = self.fetch_dumps(hids, aslist=True)
+        serialized_hist = [
+            {"id": id_, "desc": json.loads(strtransf)} for id_, strtransf in self.fetch_dumps(hids).items()
+        ]
         # TODO: deserializar antes de por no histórico
-        history = History(serialized_tranfs)
 
         # TODO: failure and timeout should be stored/fetched!
         # TODO: would it be worth to update uuid/uuids here, instead of recalculating it from the start at Data.init?
         uuids = data.uuids
         uuids.update(dict(zip(names, map(UUID, mids))))
-        return Data(uuid=uuid, uuids=uuids, history=history, failure=None, storage_info=self.storage_info, **matrices)
+        return PickableData(uuid=uuid, uuids=uuids, history=serialized_hist,
+                            failure=None, storage_info=self.storage_info, **matrices)
 
     def fetch_matrix(self, id):
         # TODO: quando faz select em algo que não existe, fica esperando

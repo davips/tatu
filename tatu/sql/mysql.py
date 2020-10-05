@@ -21,7 +21,7 @@ class MySQL(SQL):
         if "-" in db:
             raise Exception("'-' not allowed in db name!")
         self.hostname = socket.gethostname()
-        self._open()
+        super().__init__(timeout=8)
 
     def _open(self):
         """

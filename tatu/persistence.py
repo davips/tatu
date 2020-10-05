@@ -1,5 +1,6 @@
 import threading
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from multiprocessing import JoinableQueue, Queue
 from queue import Empty
 from typing import Optional
@@ -22,10 +23,11 @@ class Persistence(ABC):
     # process_lock = multiprocessing.Lock()
     thread_lock = threading.Lock()
     mythread = None
+    open = False
 
     # Time spent hoping the thread will be useful again.
 
-    def __init__(self, timeout=2):
+    def __init__(self, timeout=5):
         self.timeout = timeout
         if self.__class__.mythread is None:
             # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
@@ -35,16 +37,34 @@ class Persistence(ABC):
 
     def _worker(self):
         print("work.....")
-        while True:
+        with self.safety():
+            if not self.open:
+                try:
+                    self._open()
+                    self.open = True
+                except Exception as e:
+                    print(e)
+                    self.outqueue.put(-1)
+                    exit()
+        while self.open:
             try:
-                print("........get")
-                job = self.queue.get(timeout=self.timeout)
+                print("........get", self.queue.qsize())
+                t, dt = 0, 0.25
+                job = None
+                while job is None and t < self.timeout:
+                    try:
+                        job = self.queue.get(timeout=dt)
+                    except Empty:
+                        if not threading.main_thread().is_alive():
+                            return
+                    t += dt
+                print("........get", job)
                 if "store" in job:
-                    print("........store")
+                    # print("........store")
                     self._store_(job["store"], job["check_dup"])
-                    print("........storeddddddddd")
+                    # print("........storeddddddddd")
                 elif "fetch" in job:
-                    print("........fetch")
+                    # print("........fetch")
                     # if self.queue.empty()
                     ret = self._fetch_pickable_(job["fetch"], job["lock"])
                     self.outqueue.put(ret)
@@ -56,11 +76,11 @@ class Persistence(ABC):
             # else:
             #     break
 
-    # @classmethod
-    # @contextmanager
-    # def safety(cls):
-    #     with cls.thread_lock:  # , cls.process_lock:
-    #         yield
+    @classmethod
+    @contextmanager
+    def safety(cls):
+        with cls.thread_lock:  # , cls.process_lock:
+            yield
 
     # @abstractmethod
     # def dump(self,):
@@ -116,12 +136,20 @@ class Persistence(ABC):
     def fetch_pickable(self, data: Data, lock=False) -> Optional[PickableData]:
         if not data.ishollow:
             raise Exception("Persistence expects a hollow Data object!")
+        print("put fet")
         self.queue.put({"fetch": data.picklable, "lock": lock})
+        print("putted ")
 
         # Wait for result.
         try:
+            print("wait")
             ret = self.outqueue.get()
+            if not isinstance(ret, AbsData):
+                print(f"Couldn't fetch {data.id}. Quiting...")
+                exit()
+            print("waited")
             self.outqueue.task_done()
+            print("done")
             return ret
         except Exception as e:
             print("Problem while expecting storage reply:", e)
@@ -220,5 +248,3 @@ class FailedEntryException(Exception):
 class DuplicateEntryException(Exception):
     """This input data and transformation combination have already been inserted
     before."""
-
-

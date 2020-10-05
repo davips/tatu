@@ -144,6 +144,16 @@ class PickleServer(Persistence):
         os.remove(filename)
 
 
+# from tatu.sql.sqlite import SQLite
 # PickleServer().store(File("iris.arff").data)
 # print(PickleServer().visual_history(File("iris.arff").data.id))
+# exit()
+
+# SQLite().store(File("iris.arff").data)
+# print(SQLite().visual_history(File("iris.arff").data.id))
+# exit()
+
+# from tatu.sql.mysql import MySQL
+# MySQL(db="tatu:xxxxx@localhost/tatu").store(File("iris.arff").data)
+# print(MySQL(db="tatu:xxxxxx@localhost/tatu").visual_history(File("iris.arff").data.id))
 # exit()
