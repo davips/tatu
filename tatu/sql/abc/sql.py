@@ -38,15 +38,19 @@ class SQL(Persistence):
         rall = self.get_all()
         stored_hashes = [row["id"] for row in rall]
 
-        # Insert only dumps that are missing in storage
+        # Insert only matrices that are missing in storage
+        dic = {}
         for name, u in data.uuids.items():
             if u.id not in stored_hashes:
-                self.store_dump(u.id, data.field_dump(name))
+                dic[u.id] = data.field_dump(name)
+        self.store_dump(dic)
 
-        # Insert history.  #TODO: would a transaction be faster here?
+        # Insert history.  #TODO: replace by recursive table PARENT
+        dic = {}
         for transf in data.history:
             dump = pack(json.dumps(transf["desc"], sort_keys=True, ensure_ascii=False, cls=CustomJSONEncoder))
-            self.store_dump(transf["id"], dump)
+            dic[transf["id"]] = dump
+        self.store_dump(dic)
 
         # Create row at table 'data'. ---------------------
         sql = f"insert into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
@@ -217,15 +221,13 @@ class SQL(Persistence):
         rows = self.cursor.fetchall()
         return [dict(row) for row in rows]
 
-    def store_dump(self, duid, value):
+    def store_dump(self, lst):
         """Store the given pair uuid-dump of a matrix/vector."""
-        sql = f"insert or ignore into dump values (null, ?, ?)"
         from tatu.sql.sqlite import SQLite
-
-        dump = memoryview(value) if isinstance(self, SQLite) else value
+        lst = [(duid, memoryview(dump) if isinstance(self, SQLite) else dump) for duid, dump in lst.items()]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self.query(sql, [duid, dump])
+            self.insert_many(lst, "dump")
 
     def lock(self, data):
         did = data.uuid.id
@@ -291,9 +293,13 @@ class SQL(Persistence):
         zipped = zip(sql.replace("?", '"?"').split("?"), map(str, lst + [""]))
         return "".join(list(sum(zipped, ()))).replace('"None"', "NULL")
 
-    def insert_many(self, list_of_tuples):
-        query = "INSERT INTO parent VALUES(%s, %s)"
-        self.cursor.executemany(query, list_of_tuples)
+    def insert_many(self, list_of_tuples, table):
+        sql = f"insert or ignore INTO {table} VALUES(NULL, ?, ?)"
+        from tatu.sql.mysql import MySQL
+        if isinstance(self, MySQL):
+            sql = sql.replace("?", "%s")
+            sql = sql.replace("insert or ignore", "insert ignore")
+        self.cursor.executemany(sql, list_of_tuples)
 
     # FOREIGN KEY (attr) REFERENCES attr(aid)
     # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
