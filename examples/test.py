@@ -2,35 +2,35 @@
 import json
 from zipfile import ZipFile
 from tatu.persistence import DuplicateEntryException
-from tatu.pickleserver import PickleServer
+from tatu.pickle import Pickle
 from tatu.sql.mysql import MySQL
 from aiuna.content.specialdata import UUIDData
 from aiuna.creation import read_arff
 
-lst = PickleServer().list_by_name('iris')
+lst = Pickle().list_by_name('iris')
 for phantom in lst:
     print(phantom)
 
 # Armazenar dataset, sem depender do tatu.
-from tatu.pickleserver import PickleServer
+from tatu.pickle import Pickle
 
 print('Storing iris...')
 data = 0
 try:
     data = read_arff('iris.arff')
     ???
-    PickleServer().store(data)
+    Pickle().store(data)
 except DuplicateEntryException:
     print('Duplicate! Ignored.')
-d = PickleServer().fetch(UUIDData(data.uuid))
+d = Pickle().fetch(UUIDData(data.uuid))
 print('ok!', data.id, data.history)
 print('ok!', d.id, d.history)
 
-lst = PickleServer().list_by_name('iris')
+lst = Pickle().list_by_name('iris')
 for phantom in lst:
     print(phantom)
     print('Fetching Xd...')
-    data = PickleServer().fetch(phantom)
+    data = Pickle().fetch(phantom)
     print(data.Xd)
 
 # Testes            ############################
@@ -41,7 +41,7 @@ for phantom in lst:
 
 # Teste de gravação ############################
 print('Storing Data object...')
-test = PickleServer()
+test = Pickle()
 try:
     test.store(data)
     print('ok!')
@@ -60,11 +60,11 @@ print("fetch", test.fetch(data.hollow()).id)
 # print(data.X)
 
 # # Resgatar por UUID ###########################
-byuuid = PickleServer().fetch(UUIDData(data.uuid))
+byuuid = Pickle().fetch(UUIDData(data.uuid))
 print("byuuid", byuuid)
 
 uuid = "ĹЇЖȡfĭϹƗͶэգ8Ƀű"
-data = PickleServer().fetch(UUIDData(uuid))
+data = Pickle().fetch(UUIDData(uuid))
 print("dddddddddddd", data.matrices.keys())
 storage = MySQL(db="user:senha@143.107.183.114/base")
 # storage.store(data)
@@ -81,7 +81,7 @@ print("add...")
 zipped_file.writestr(uuid, arff)
 zipped_file.close()
 
-storage = PickleServer()
+storage = Pickle()
 uuid = "ĹЇЖȡfĭϹƗͶэգ8Ƀű"
 vhist = storage.visual_history(uuid, "/tmp")
 print(json.dumps(vhist, indent=4))

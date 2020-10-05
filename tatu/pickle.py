@@ -5,19 +5,24 @@ from glob import glob
 from pathlib import Path
 from typing import Optional
 
-from aiuna.content.data import Data, PickableData
-from aiuna.file import File
+from aiuna.content.data import Data, Picklable
 from tatu.disk import save, load
 from tatu.persistence import (
     Persistence,
     LockedEntryException,
     FailedEntryException,
     DuplicateEntryException,
-    UnlockedEntryException,
+    UnlockedEntryException, MissingEntryException,
 )
 
 
-class PickleServer(Persistence):
+class Pickle(Persistence):
+    def _delete_(self, data: Data, check_missing=True):
+        locked = self._filename("", data)
+        if check_missing and not Path(locked).exists():
+            raise MissingEntryException("Does not exist:", data.id)
+        os.remove(locked)
+
     def __init__(self, db="tatu-sqlite", compress=True):
         super().__init__(timeout=1)
         self.db = db
@@ -25,7 +30,7 @@ class PickleServer(Persistence):
         if not Path(db).exists():
             os.mkdir(db)
 
-    def _fetch_pickable_(self, data: Data, lock=False) -> Optional[PickableData]:
+    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Picklable]:
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 
@@ -136,12 +141,15 @@ class PickleServer(Persistence):
             pickle.dump(data, f)
             f.close()
 
-    def unlock(self, data, training_data_uuid=""):
+    def _unlock_(self, data):
         filename = self._filename("*", data)
         if not Path(filename).exists():
             raise UnlockedEntryException("Cannot unlock something that is not " "locked!", filename)
         print("W: Unlocking...", filename)
         os.remove(filename)
+
+    def _open(self):
+        pass
 
 
 # from tatu.sql.sqlite import SQLite
@@ -149,7 +157,9 @@ class PickleServer(Persistence):
 # print(PickleServer().visual_history(File("iris.arff").data.id))
 # exit()
 
-# SQLite().store(File("iris.arff").data)
+# data = File("iris.arff").data
+# SQLite().delete(data, check_missing=False)
+# SQLite().store(data)
 # print(SQLite().visual_history(File("iris.arff").data.id))
 # exit()
 

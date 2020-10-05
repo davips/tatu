@@ -1,21 +1,32 @@
 import json
 import warnings
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Optional
 
 from aiuna.compression import unpack, pack
-from aiuna.content.data import Data, PickableData
+from aiuna.content.data import Data, Picklable
 from cruipto.uuid import UUID
-from tatu.persistence import Persistence, DuplicateEntryException, LockedEntryException
+from tatu.persistence import Persistence, DuplicateEntryException, LockedEntryException, MissingEntryException
 from transf.customjsonencoder import CustomJSONEncoder
 
 
-class SQL(Persistence):
+class SQL(Persistence, ABC):
     cursor = None
     storage_info = None
 
+    # TODO: check if all queries are safely interpolated
+
+    def _delete_(self, data: Data, check_missing=True):
+        # TODO: delete dangling matrices? aproveitar checagem interna de chave estrangeira do SQL pra isso?
+        # TODO:
+        if check_missing:
+            self.query(f"select t from data where id=?", [data.id])
+            if self.get_one() is None:
+                raise MissingEntryException("Does not exist:", data.id)
+        self.query(f"delete from data where id=?", [data.id])
+
     # TODO: remove training_data_uuid from here and put it inside transformations
-    def _store_(self, data: Data, check_dup: bool = True):
+    def _store_(self, data: Data, check_dup=True):
         # The sequence of queries is planned to minimize traffic and CPU load,
         # otherwise it would suffice to just send 'insert or ignore' of dumps.
         uuid = data.uuid
@@ -23,14 +34,13 @@ class SQL(Persistence):
         rone = self.get_one()
 
         if rone:
-            # Remove lock.
             locked = rone["t"] == "0000-00-00 00:00:00"
-            if locked:
-                self.query(f"delete from data where id=?", [uuid.id])
-
-            # Already exists?
-            elif check_dup:
+            if check_dup:
                 raise DuplicateEntryException("Already exists:", uuid.id)
+            already_exists = not locked
+        else:
+            locked = False
+            already_exists = False
 
         # Check if dumps of matrices/vectors already exist.
         qmarks = ",".join(["?"] * len(data.uuids))
@@ -52,27 +62,32 @@ class SQL(Persistence):
             dic[transf["id"]] = dump
         self.store_dump(dic)
 
-        # Create row at table 'data'. ---------------------
-        sql = f"insert into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
+        # Insert Data object.
+        if not already_exists:
+            if check_dup and not locked:
+                # check_dup==True means allow SQL to enforce UNIQUE constraint,
+                # because data could have been inserted in the mean time
+                sql = f"insert into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
+            else:
+                sql = f"insert or ignore into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
+            data_args = [uuid.id, data.matrix_names_str, data.ids_str, data.history_str]
+            # from sqlite3 import IntegrityError as IntegrityErrorSQLite
+            # from pymysql import IntegrityError as IntegrityErrorMySQL
+            # try:
+            self.query(sql, data_args)
+            # unfortunately,
+            # it seems that FKs generate the same exception as reinsertion.
+            # so, missing FKs might not be detected here.
+            # not a worrying issue whatsoever.
+            # TODO: it seems to be capturing errors other these here:
+            # except IntegrityErrorSQLite as e:
+            #     print(f'Unexpected: Data already stored before!', uuid)
+            # except IntegrityErrorMySQL as e:
+            #     print(f'Unexpected: Data already stored before!', uuid)
+            # else:
+            print(f": Data inserted", uuid)
 
-        data_args = [uuid.id, data.matrix_names_str, data.ids_str, data.history_str]
-        # from sqlite3 import IntegrityError as IntegrityErrorSQLite
-        # from pymysql import IntegrityError as IntegrityErrorMySQL
-        # try:
-        self.query(sql, data_args)
-        # unfortunately,
-        # it seems that FKs generate the same exception as reinsertion.
-        # so, missing FKs might not be detected here.
-        # not a worrying issue whatsoever.
-        # TODO: it seems to be capturing errors other these here:
-        # except IntegrityErrorSQLite as e:
-        #     print(f'Unexpected: Data already stored before!', uuid)
-        # except IntegrityErrorMySQL as e:
-        #     print(f'Unexpected: Data already stored before!', uuid)
-        # else:
-        print(f": Data inserted", uuid)
-
-    def _fetch_pickable_(self, data: Data, lock=False) -> Optional[PickableData]:
+    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Picklable]:
         # Fetch data info.
         uuid = data.uuid
         self.query(f"select * from data where id=?", [uuid.id])
@@ -115,8 +130,8 @@ class SQL(Persistence):
         # TODO: would it be worth to update uuid/uuids here, instead of recalculating it from the start at Data.init?
         uuids = data.uuids
         uuids.update(dict(zip(names, map(UUID, mids))))
-        return PickableData(uuid=uuid, uuids=uuids, history=serialized_hist,
-                            failure=None, storage_info=self.storage_info, **matrices)
+        return Picklable(uuid=uuid, uuids=uuids, history=serialized_hist,
+                         failure=None, storage_info=self.storage_info, **matrices)
 
     def fetch_matrix(self, id):
         # TODO: quando faz select em algo que não existe, fica esperando
@@ -140,7 +155,7 @@ class SQL(Persistence):
         else:
             return {duid: id_value[duid] for duid in duids}
 
-    def unlock(self, data, training_data_uuid=None):
+    def _unlock_(self, data):
         # locked = rone and rone['t'] == '0000-00-00 00:00:00'
         # if not locked:
         #     raise UnlockedEntryException('Cannot unlock if it is not locked!')

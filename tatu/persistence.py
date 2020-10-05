@@ -5,7 +5,7 @@ from multiprocessing import JoinableQueue, Queue
 from queue import Empty
 from typing import Optional
 
-from aiuna.content.data import Data, PickableData
+from aiuna.content.data import Data, Picklable
 from aiuna.content.specialdata import UUIDData
 from cruipto.uuid import UUID
 from transf.absdata import AbsData
@@ -32,11 +32,9 @@ class Persistence(ABC):
         if self.__class__.mythread is None:
             # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
             self.__class__.mythread = threading.Thread(target=self._worker, daemon=False)
-            print("nnnova.........")
             self.mythread.start()
 
     def _worker(self):
-        print("work.....")
         with self.safety():
             if not self.open:
                 try:
@@ -48,7 +46,6 @@ class Persistence(ABC):
                     exit()
         while self.open:
             try:
-                print("........get", self.queue.qsize())
                 t, dt = 0, 0.25
                 job = None
                 while job is None and t < self.timeout:
@@ -58,23 +55,22 @@ class Persistence(ABC):
                         if not threading.main_thread().is_alive():
                             return
                     t += dt
-                print("........get", job)
-                if "store" in job:
-                    # print("........store")
+                if job is None:
+                    break
+                if "unlock" in job:
+                    self.unlock(job["unlock"])
+                elif "delete" in job:
+                    self._delete_(job["delete"], job["check_missing"])
+                elif "store" in job:
                     self._store_(job["store"], job["check_dup"])
-                    # print("........storeddddddddd")
                 elif "fetch" in job:
-                    # print("........fetch")
-                    # if self.queue.empty()
-                    ret = self._fetch_pickable_(job["fetch"], job["lock"])
+                    ret = self._fetch_picklable_(job["fetch"], job["lock"])
                     self.outqueue.put(ret)
                     self.outqueue.join()
                 else:
                     print("Unexpected job:", job)
             except Empty:
                 break
-            # else:
-            #     break
 
     @classmethod
     @contextmanager
@@ -87,10 +83,25 @@ class Persistence(ABC):
     #     """Dump component"""
 
     @abstractmethod
+    def _open(self):
+        pass
+
+    @abstractmethod
+    def _delete_(self, data: Data, check_missing=True):
+        pass
+
+    @abstractmethod
     def _store_(self, data: Data, check_dup=True):
         pass
 
-    def store(self, data: Data, check_dup=True):
+    def delete(self, data: Data, check_missing=True, recursive=True):
+        while data:
+            self.queue.put({"delete": data.picklable, "check_missing": check_missing})
+            if not recursive:
+                break
+            data = data.inner
+
+    def store(self, data: Data, check_dup=True, recursive=True):
         """
         Parameters
         ----------
@@ -107,7 +118,20 @@ class Persistence(ABC):
         ---------
         DuplicateEntryException
         """
-        self.queue.put({"store": data.picklable, "check_dup": check_dup})
+        if data.stream:
+            print("Cannot store Data objects containing a stream.")
+            exit()
+        # traverse all nested inner Data objects
+        while data:
+            self.queue.put({"store": data.picklable, "check_dup": check_dup})
+            if not recursive:
+                break
+            data = data.inner
+            # We disable check_dup here because the fetch attempt (at most)
+            # only happened for outer data (sending of matrices is optimized anyway).
+            # REMINDER: Cache could not traverse fetching/storing because it doesn't know
+            # how to process inner data, it only knows how to apply a step to the outer data.
+            check_dup = False
 
     def fetch(self, data: Data, lock=False) -> AbsData:
         """Fetch data from DB.
@@ -129,38 +153,53 @@ class Persistence(ABC):
         LockedEntryException, FailedEntryException
         """
         if not data.ishollow:
-            raise Exception("Persistence expects a hollow Data object!")
-        data = self.fetch_pickable(data, lock)
+            # TODO: remove this check
+            # TODO: accept id string
+            # TODO: create Hollow / jsonable vai precisar conter tipo da classe (Picklable, Hollow, ...)
+            raise Exception("Persistence expects a hollow Data object!\nHINT: use data.hollow")
+        data = self.fetch_picklable(data, lock)
         return data and data.unpicklable
 
-    def fetch_pickable(self, data: Data, lock=False) -> Optional[PickableData]:
+    def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Optional[Picklable]:
         if not data.ishollow:
             raise Exception("Persistence expects a hollow Data object!")
-        print("put fet")
-        self.queue.put({"fetch": data.picklable, "lock": lock})
-        print("putted ")
+        nextouter = None
+        while data:
+            print("ppppppppppppppppppp")
+            self.queue.put({"fetch": data.picklable, "lock": lock})
 
-        # Wait for result.
-        try:
-            print("wait")
-            ret = self.outqueue.get()
-            if not isinstance(ret, AbsData):
-                print(f"Couldn't fetch {data.id}. Quiting...")
-                exit()
-            print("waited")
-            self.outqueue.task_done()
-            print("done")
-            return ret
-        except Exception as e:
-            print("Problem while expecting storage reply:", e)
+            # Wait for result.
             try:
-                self.outqueue.get()
+                print("ggggggggggggg")
+                output = self.outqueue.get()
+                if output is not None and not isinstance(output, AbsData):
+                    print("type:", type(output), output)
+                    print(f"Couldn't fetch {data.id}. Quiting...")
+                    exit()
                 self.outqueue.task_done()
-            finally:
-                exit(0)
+            except Exception as e:
+                print("Problem while expecting storage reply:", e)
+                try:
+                    self.outqueue.get()
+                    self.outqueue.task_done()
+                finally:
+                    exit(0)
+            if output is None:
+                # Exit at the first miss, for simplicity.
+                # [could be a sofisticated lazy partially filled structure]
+                return None
+            if nextouter is None:
+                first = output
+                if not recursive:
+                    break
+            else:
+                nextouter.replace([], inner=output)
+            nextouter = output
+            data = data.inner
+        return first
 
     @abstractmethod
-    def _fetch_pickable_(self, data: Data, lock=False) -> Optional[Data]:
+    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Data]:
         pass
 
     @abstractmethod
@@ -190,8 +229,11 @@ class Persistence(ABC):
         pass
 
     @abstractmethod
-    def unlock(self, data):
+    def _unlock_(self, data):
         pass
+
+    def unlock(self, data):
+        self.queue.put({"unlock": data})
 
     def visual_history(self, id_, folder=None):
         """List with all steps/Data objects before the current one. The current avatar is also generated."""
@@ -231,20 +273,20 @@ class Persistence(ABC):
 
 
 class UnlockedEntryException(Exception):
-    """No node locked entry for this input data and transformation
-    combination."""
+    """No locked entry for this input data."""
 
 
 class LockedEntryException(Exception):
-    """Another node is generating output data for this input data
-    and transformation combination."""
+    """Another node is/was generating output data for this input data."""
 
 
 class FailedEntryException(Exception):
-    """This input data and transformation combination have already failed
-    before."""
+    """This input data has already failed before."""
 
 
 class DuplicateEntryException(Exception):
-    """This input data and transformation combination have already been inserted
-    before."""
+    """This input data has already been inserted before."""
+
+
+class MissingEntryException(Exception):
+    """This input data is missing."""
