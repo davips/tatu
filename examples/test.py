@@ -2,7 +2,7 @@
 import json
 from zipfile import ZipFile
 from tatu.persistence import DuplicateEntryException
-from tatu.pickle import Pickle
+from tatu.pickle_ import Pickle
 from tatu.sql.mysql import MySQL
 from aiuna.content.specialdata import UUIDData
 from aiuna.creation import read_arff
@@ -12,7 +12,7 @@ for phantom in lst:
     print(phantom)
 
 # Armazenar dataset, sem depender do tatu.
-from tatu.pickle import Pickle
+from tatu.pickle_ import Pickle
 
 print('Storing iris...')
 data = 0

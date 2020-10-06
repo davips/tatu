@@ -100,8 +100,8 @@ class SQL(Persistence, ABC):
         # values_by_id = {row['id']: row['value'] for row in rall}
 
         if result["names"] == "":
-            print("W: Previously locked by other process.", data)
-            raise LockedEntryException(data)
+            print("W: Previously locked by other process.", data.id)
+            raise LockedEntryException(data.id)
 
         names = result["names"].split(",")
         mids = result["matrices"].split(",")

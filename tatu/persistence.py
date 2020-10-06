@@ -32,6 +32,7 @@ class Persistence(ABC):
         if self.__class__.mythread is None:
             # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
             self.__class__.mythread = threading.Thread(target=self._worker, daemon=False)
+            print("Starting thread for", self.__class__.__name__)
             self.mythread.start()
 
     def _worker(self):
@@ -42,7 +43,7 @@ class Persistence(ABC):
                     self.open = True
                 except Exception as e:
                     print(e)
-                    self.outqueue.put(-1)
+                    self.outqueue.put(False)
                     exit()
         while self.open:
             try:
@@ -53,22 +54,30 @@ class Persistence(ABC):
                         job = self.queue.get(timeout=dt)
                     except Empty:
                         if not threading.main_thread().is_alive():
-                            return
+                            break
                     t += dt
                 if job is None:
                     break
-                if "unlock" in job:
-                    self.unlock(job["unlock"])
-                elif "delete" in job:
-                    self._delete_(job["delete"], job["check_missing"])
-                elif "store" in job:
-                    self._store_(job["store"], job["check_dup"])
-                elif "fetch" in job:
-                    ret = self._fetch_picklable_(job["fetch"], job["lock"])
-                    self.outqueue.put(ret)
-                    self.outqueue.join()
-                else:
-                    print("Unexpected job:", job)
+
+                try:
+                    if "unlock" in job:
+                        self.unlock(job["unlock"])
+                    elif "delete" in job:
+                        self._delete_(job["delete"], job["check_missing"])
+                    elif "store" in job:
+                        self._store_(job["store"], job["check_dup"])
+                    elif "fetch" in job:
+                        ret = self._fetch_picklable_(job["fetch"], job["lock"])
+                        self.outqueue.put(ret)
+                        self.outqueue.join()
+                    else:
+                        print("Unexpected job:", job)
+                except Exception as e:
+                    print(f"Problem while processing job {job}:", e)
+                    if threading.main_thread().is_alive():
+                        self.outqueue.put(False)
+                    break
+
             except Empty:
                 break
 
@@ -127,10 +136,10 @@ class Persistence(ABC):
             if not recursive:
                 break
             data = data.inner
-            # We disable check_dup here because the fetch attempt (at most)
-            # only happened for outer data (sending of matrices is optimized anyway).
+            # We disable check_dup here because the fetch attempt to verify existence
+            # only happened (at most) for outer data (moreover, sending of matrices is optimized, anyway).
             # REMINDER: Cache could not traverse fetching/storing because it doesn't know
-            # how to process inner data, it only knows how to apply a step to the outer data.
+            # how to process inner data, it only knows how to apply a step to the outer data as a whole.
             check_dup = False
 
     def fetch(self, data: Data, lock=False) -> AbsData:
@@ -155,40 +164,41 @@ class Persistence(ABC):
         if not data.ishollow:
             # TODO: remove this check
             # TODO: accept id string
-            # TODO: create Hollow / jsonable vai precisar conter tipo da classe (Picklable, Hollow, ...)
+            # TODO: create Hollow: jsonable vai precisar conter tipo da classe (Picklable, Hollow, ...)
             raise Exception("Persistence expects a hollow Data object!\nHINT: use data.hollow")
         data = self.fetch_picklable(data, lock)
         return data and data.unpicklable
 
     def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Optional[Picklable]:
+        # print("ids:::::::::::::::::", data.id, data.inner and data.inner.id)
         if not data.ishollow:
             raise Exception("Persistence expects a hollow Data object!")
-        nextouter = None
+        first, nextouter = None, None
+        # Raises LockedEntryException if data or any of inner datas were previously locked,
+        # but keeps a dict to avoid refetching the same data while traversing inners.
+        fetched = {}
         while data:
-            print("ppppppppppppppppppp")
-            self.queue.put({"fetch": data.picklable, "lock": lock})
+            if data.id in fetched:
+                output = fetched[data.id]
+            else:
+                self.queue.put({"fetch": data.picklable, "lock": lock})
 
-            # Wait for result.
-            try:
-                print("ggggggggggggg")
-                output = self.outqueue.get()
-                if output is not None and not isinstance(output, AbsData):
-                    print("type:", type(output), output)
+                # Wait for result.
+                ret = self.outqueue.get()
+                if ret is None:
+                    # Exit at the first miss, for simplicity.
+                    # [could be a sofisticated lazy partially filled structure]
+                    self.outqueue.task_done()
+                    return None
+                if not isinstance(ret, AbsData):
+                    print("type:", type(ret), ret)
                     print(f"Couldn't fetch {data.id}. Quiting...")
                     exit()
+                output = ret
+                fetched[output.id] = output
                 self.outqueue.task_done()
-            except Exception as e:
-                print("Problem while expecting storage reply:", e)
-                try:
-                    self.outqueue.get()
-                    self.outqueue.task_done()
-                finally:
-                    exit(0)
-            if output is None:
-                # Exit at the first miss, for simplicity.
-                # [could be a sofisticated lazy partially filled structure]
-                return None
-            if nextouter is None:
+
+            if first is None:
                 first = output
                 if not recursive:
                     break

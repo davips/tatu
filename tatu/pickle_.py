@@ -157,13 +157,17 @@ class Pickle(Persistence):
 # print(PickleServer().visual_history(File("iris.arff").data.id))
 # exit()
 
-# data = File("iris.arff").data
-# SQLite().delete(data, check_missing=False)
-# SQLite().store(data)
-# print(SQLite().visual_history(File("iris.arff").data.id))
-# exit()
+def sqlite_Test():
+    from tatu.sql.sqlite import SQLite
+    from aiuna.file import File
+    data = File("iris.arff").data
+    SQLite().delete(data, check_missing=False)
+    SQLite().store(data)
+    print(SQLite().visual_history(File("iris.arff").data.id))
 
 # from tatu.sql.mysql import MySQL
 # MySQL(db="tatu:xxxxx@localhost/tatu").store(File("iris.arff").data)
 # print(MySQL(db="tatu:xxxxxx@localhost/tatu").visual_history(File("iris.arff").data.id))
 # exit()
+
+# sqlite_Test()
