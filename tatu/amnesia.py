@@ -1,10 +1,10 @@
 from typing import Optional
 
 from aiuna.content.data import Data
-from tatu.persistence import Persistence
+from tatu.storage import Storage
 
 
-class Amnesia(Persistence):
+class Amnesia(Storage):
     def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Data]:
         return None
 

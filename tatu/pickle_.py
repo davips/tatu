@@ -7,8 +7,8 @@ from typing import Optional
 
 from aiuna.content.data import Data, Picklable
 from tatu.disk import save, load
-from tatu.persistence import (
-    Persistence,
+from tatu.storage import (
+    Storage,
     LockedEntryException,
     FailedEntryException,
     DuplicateEntryException,
@@ -16,7 +16,7 @@ from tatu.persistence import (
 )
 
 
-class Pickle(Persistence):
+class Pickle(Storage):
     def __init__(self, blocking=False, db="tatu-sqlite", compress=True):
         self.db = db
         self.compress = compress

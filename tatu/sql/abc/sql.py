@@ -6,10 +6,10 @@ from typing import Optional
 from aiuna.compression import unpack, pack
 from aiuna.content.data import Data, Picklable
 from cruipto.uuid import UUID
-from tatu.persistence import Persistence, DuplicateEntryException, LockedEntryException, MissingEntryException
+from tatu.storage import Storage, DuplicateEntryException, LockedEntryException, MissingEntryException
 
 
-class SQL(Persistence, ABC):
+class SQL(Storage, ABC):
     cursor = None
     storage_info = None
 

@@ -13,7 +13,7 @@ from transf.absdata import AbsData
 from transf.step import Step
 
 
-class Persistence(ABC):
+class Storage(ABC):
     """
     This class stores and recovers results from some place.
     The children classes are expected to provide storage in e.g.:
