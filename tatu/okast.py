@@ -32,10 +32,11 @@ class OkaSt(Persistence):
         r = requests.post(self.url + "/api/tatu", files=files, headers=self.headers)
 
     def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Data]:
-        response = requests.get(self.url + f"/api/tatu?uuid={data.id}", headers=self.headers)
+        did = data if isinstance(data, str) else data.id
+        response = requests.get(self.url + f"/api/tatu?uuid={did}", headers=self.headers)
         content = response.content
         if b"errors" in content:
-            raise Exception("Invalid token", content, self.url + f"?uuid={data.id}")
+            raise Exception("Invalid token", content, self.url + f"?uuid={did}")
         return content and unpack(content)
 
     def _delete_(self, data: Data, check_missing=True):

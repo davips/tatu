@@ -30,7 +30,11 @@ class Persistence(ABC):
 
     def __init__(self, blocking, timeout):
         self.blocking = blocking
-        if not self.blocking:
+        if self.blocking:
+            if not self.open:
+                self._open()
+                self.open = True
+        else:
             self.timeout = timeout
             if self.__class__.mythread is None:
                 # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
@@ -110,7 +114,7 @@ class Persistence(ABC):
     def delete(self, data: Data, check_missing=True, recursive=True):
         while data:
             if self.blocking:
-                self._delete_(data, check_missing, recursive)
+                self._delete_(data.picklable, check_missing, recursive)
             else:
                 self.queue.put({"delete": data.picklable, "check_missing": check_missing})
             if not recursive:
@@ -152,7 +156,7 @@ class Persistence(ABC):
         # insert from last to first due to foreign key constraint on inner->data.id
         for job in reversed(lst):
             if self.blocking:
-                self._store_(data, check_dup)
+                self._store_(job["store"], check_dup)
             else:
                 self.queue.put(job)
 
@@ -183,9 +187,9 @@ class Persistence(ABC):
     def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Optional[Picklable]:
         data = data.picklable
         lst = []
-        while data:
+        while data is not None:
             if self.blocking:
-                output = self._fetch_picklable_(data,lock)
+                output = self._fetch_picklable_(data, lock)
             else:
                 self.queue.put({"fetch": data, "lock": lock})
 

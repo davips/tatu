@@ -56,10 +56,15 @@ class MySQL(SQL):
             print("using database", self.db, "on", self.database, "...")
         self.cursor.execute("use " + self.db)
         self.query(f"show tables")
-        setup = not bool(self.get_all())
 
-        if setup:
+        # Create tables if they don't exist yet.
+        try:
+            self.query(f"select 1 from data")
+        except:
+            if self.debug:
+                print("creating database", self.database, "...")
             self._setup()
+
         return self
 
     @staticmethod

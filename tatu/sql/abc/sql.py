@@ -98,7 +98,7 @@ class SQL(Persistence, ABC):
         names = result["names"].split(",")
         mids = result["matrices"].split(",")
         hids = result["history"].split(",")
-        inner = result["inner"]
+        inner = result["inn"]
 
         name_by_mid = dict(zip(mids, names))
 
@@ -187,12 +187,12 @@ class SQL(Persistence, ABC):
             create table if not exists data (
                 n integer NOT NULL primary key {self._auto_incr()},
                 id char(18) NOT NULL UNIQUE,
-                inner char(18),
+                inn char(18),
                 names VARCHAR(255) NOT NULL,
                 matrices VARCHAR(2048), 
-                history VARCHAR(65535),
+                history TEXT,
                 t TIMESTAMP, 
-                FOREIGN KEY (inner) REFERENCES data(id)
+                FOREIGN KEY (inn) REFERENCES data(id)
             )"""
         )
         self.query(
@@ -250,9 +250,11 @@ class SQL(Persistence, ABC):
         try:
             self.query(sql, args)
         except IntegrityErrorSQLite as e:
-            print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+            # print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+            pass
         except IntegrityErrorMySQL as e:
-            print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+            # print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+            pass
         else:
             print(f"Now locked for {did}")
 
