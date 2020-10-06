@@ -10,7 +10,7 @@ from aiuna.compression import pack, unpack
 from aiuna.content.data import Data
 
 
-class OkaStorage(Persistence):
+class OkaSt(Persistence):
     """se data já existir, não tenta criar post!"""
 
     def _open(self):
@@ -38,11 +38,14 @@ class OkaStorage(Persistence):
             raise Exception("Invalid token", content, self.url + f"?uuid={data.id}")
         return content and unpack(content)
 
+    def _delete_(self, data: Data, check_missing=True):
+        raise NotImplemented
+
     def fetch_matrix(self, id):
-        pass
+        raise NotImplemented
 
     def list_by_name(self, substring, only_historyless=True):
-        pass
+        raise NotImplemented
 
     def _unlock_(self, data):
-        pass
+        raise NotImplemented

@@ -1,14 +1,14 @@
 import json
 
 from aiuna.file import File
-from tatu.okastorage import OkaStorage
+from tatu.okast import OkaSt
 from aiuna.content.specialdata import UUIDData
 from aiuna.creation import read_arff
 
 with open("token.txt", "r") as f:
     token = json.load(f)["token"]
 
-storage = OkaStorage(post=True, token=token)
+storage = OkaSt(post=True, token=token)
 
 print("Reading file...")
 data = File("iris.arff")
