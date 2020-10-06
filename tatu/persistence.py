@@ -1,6 +1,7 @@
 import threading
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
+from functools import reduce
 from multiprocessing import JoinableQueue, Queue
 from queue import Empty
 from typing import Optional
@@ -76,6 +77,7 @@ class Persistence(ABC):
                     print(f"Problem while processing job {job}:", e)
                     if threading.main_thread().is_alive():
                         self.outqueue.put(False)
+                    raise Exception
                     break
 
             except Empty:
@@ -131,16 +133,20 @@ class Persistence(ABC):
             print("Cannot store Data objects containing a stream.")
             exit()
         # traverse all nested inner Data objects
+        lst = []
         while data:
-            self.queue.put({"store": data.picklable, "check_dup": check_dup})
+            lst.append({"store": data.picklable, "check_dup": check_dup})
             if not recursive:
                 break
             data = data.inner
+            check_dup = False
             # We disable check_dup here because the fetch attempt to verify existence
             # only happened (at most) for outer data (moreover, sending of matrices is optimized, anyway).
             # REMINDER: Cache could not traverse fetching/storing because it doesn't know
             # how to process inner data, it only knows how to apply a step to the outer data as a whole.
-            check_dup = False
+        # insert from last to first due to foreign key constraint on inner->data.id
+        for job in reversed(lst):
+            self.queue.put(job)
 
     def fetch(self, data: Data, lock=False) -> AbsData:
         """Fetch data from DB.
@@ -161,52 +167,36 @@ class Persistence(ABC):
         ---------
         LockedEntryException, FailedEntryException
         """
-        if not data.ishollow:
-            # TODO: remove this check
-            # TODO: accept id string
-            # TODO: create Hollow: jsonable vai precisar conter tipo da classe (Picklable, Hollow, ...)
-            raise Exception("Persistence expects a hollow Data object!\nHINT: use data.hollow")
+        # TODO: accept id string
+        # TODO: create Hollow: jsonable vai precisar conter tipo da classe (Picklable, Hollow, ...)
         data = self.fetch_picklable(data, lock)
         return data and data.unpicklable
 
-    def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Optional[Picklable]:
-        # print("ids:::::::::::::::::", data.id, data.inner and data.inner.id)
-        if not data.ishollow:
-            raise Exception("Persistence expects a hollow Data object!")
-        first, nextouter = None, None
-        # Raises LockedEntryException if data or any of inner datas were previously locked,
-        # but keeps a dict to avoid refetching the same data while traversing inners.
-        fetched = {}
+    def fetch_picklable(self, data: Data, lock=False) -> Optional[Picklable]:
+        data = data.picklable
+        lst = []
         while data:
-            if data.id in fetched:
-                output = fetched[data.id]
-            else:
-                self.queue.put({"fetch": data.picklable, "lock": lock})
+            self.queue.put({"fetch": data, "lock": lock})
 
-                # Wait for result.
-                ret = self.outqueue.get()
-                if ret is None:
-                    # Exit at the first miss, for simplicity.
-                    # [could be a sofisticated lazy partially filled structure]
-                    self.outqueue.task_done()
-                    return None
-                if not isinstance(ret, AbsData):
-                    print("type:", type(ret), ret)
-                    print(f"Couldn't fetch {data.id}. Quiting...")
-                    exit()
-                output = ret
-                fetched[output.id] = output
+            # Wait for result.
+            output = self.outqueue.get()
+            if not (output is None or isinstance(output, AbsData)):
+                id = data if isinstance(data, str) else data.id
+                print("type:", type(output), output)
+                print(f"Couldn't fetch {id}. Quiting...")
                 self.outqueue.task_done()
+                exit()
+            self.outqueue.task_done()
 
-            if first is None:
-                first = output
-                if not recursive:
-                    break
-            else:
-                nextouter.replace([], inner=output)
-            nextouter = output
-            data = data.inner
-        return first
+            if output is None or not (output.inner is None or isinstance(output.inner, str)):
+                # Task complete if None or if inner is already build (e.g. coming from Pickle).
+                return output
+
+            data = output.inner
+            lst.append(output)
+
+        # reconstruct lineage
+        return reduce(lambda inner, outer: outer.replace([], inner=inner), reversed(lst))
 
     @abstractmethod
     def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Data]:

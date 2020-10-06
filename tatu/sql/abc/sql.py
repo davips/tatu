@@ -7,7 +7,6 @@ from aiuna.compression import unpack, pack
 from aiuna.content.data import Data, Picklable
 from cruipto.uuid import UUID
 from tatu.persistence import Persistence, DuplicateEntryException, LockedEntryException, MissingEntryException
-from transf.customjsonencoder import CustomJSONEncoder
 
 
 class SQL(Persistence, ABC):
@@ -37,10 +36,8 @@ class SQL(Persistence, ABC):
             locked = rone["t"] == "0000-00-00 00:00:00"
             if check_dup:
                 raise DuplicateEntryException("Already exists:", uuid.id)
-            already_exists = not locked
         else:
             locked = False
-            already_exists = False
 
         # Check if dumps of matrices/vectors already exist.
         qmarks = ",".join(["?"] * len(data.uuids))
@@ -56,62 +53,58 @@ class SQL(Persistence, ABC):
         self.store_dump(dic)
 
         # Insert history.  #TODO: replace by recursive table PARENT
-        dic = {}
-        for transf in data.history:
-            dump = pack(json.dumps(transf["desc"], sort_keys=True, ensure_ascii=False, cls=CustomJSONEncoder))
-            dic[transf["id"]] = dump
+        dic = {hid: pack(stepstr) for hid, stepstr in data.history.items()}
         self.store_dump(dic)
 
         # Insert Data object.
-        if not already_exists:
-            if check_dup and not locked:
-                # check_dup==True means allow SQL to enforce UNIQUE constraint,
-                # because data could have been inserted in the mean time
-                sql = f"insert into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
-            else:
-                sql = f"insert or ignore into data values (NULL, ?, ?, ?, ?, {self._now_function()})"
-            data_args = [uuid.id, data.matrix_names_str, data.ids_str, data.history_str]
-            # from sqlite3 import IntegrityError as IntegrityErrorSQLite
-            # from pymysql import IntegrityError as IntegrityErrorMySQL
-            # try:
-            self.query(sql, data_args)
-            # unfortunately,
-            # it seems that FKs generate the same exception as reinsertion.
-            # so, missing FKs might not be detected here.
-            # not a worrying issue whatsoever.
-            # TODO: it seems to be capturing errors other these here:
-            # except IntegrityErrorSQLite as e:
-            #     print(f'Unexpected: Data already stored before!', uuid)
-            # except IntegrityErrorMySQL as e:
-            #     print(f'Unexpected: Data already stored before!', uuid)
-            # else:
-            print(f": Data inserted", uuid)
+        if not locked and check_dup:
+            # ensure UNIQUE constraint (just in case something changed in the meantime since select*)
+            sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
+        else:
+            sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
+        data_args = [uuid.id, data.inner and data.inner.id, data.matrix_names_str, data.ids_str, data.history_str]
+        # from sqlite3 import IntegrityError as IntegrityErrorSQLite
+        # from pymysql import IntegrityError as IntegrityErrorMySQL
+        # try:
+        self.query(sql, data_args)
+        # unfortunately,
+        # it seems that FKs generate the same exception as reinsertion.
+        # so, missing FKs might not be detected here.
+        # not a worrying issue whatsoever.
+        # TODO: it seems to be capturing errors other these here:
+        # except IntegrityErrorSQLite as e:
+        #     print(f'Unexpected: Data already stored before!', uuid)
+        # except IntegrityErrorMySQL as e:
+        #     print(f'Unexpected: Data already stored before!', uuid)
+        # else:
+        print(f": Data inserted", uuid)
 
     def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Picklable]:
         # Fetch data info.
-        uuid = data.uuid
-        self.query(f"select * from data where id=?", [uuid.id])
+        did = data if isinstance(data, str) else data.id
+        self.query(f"select * from data where id=?", [did])
         result = self.get_one()
 
         if result is None:
             if lock:
-                self.lock(data)
+                self.lock(did)
             return None
         # values_by_id = {row['id']: row['value'] for row in rall}
 
         if result["names"] == "":
-            print("W: Previously locked by other process.", data.id)
-            raise LockedEntryException(data.id)
+            print("W: Previously locked by other process.", did)
+            raise LockedEntryException(did)
 
         names = result["names"].split(",")
         mids = result["matrices"].split(",")
         hids = result["history"].split(",")
+        inner = result["inner"]
 
         name_by_mid = dict(zip(mids, names))
 
         # Fetch matrices (lazily, if storage_info is provided).
-        new_mids = [mid for mid in mids if mid not in data.ids_lst]
-        matrices = data.matrices
+        new_mids = [mid for mid in mids if isinstance(data, str) or mid not in data.ids_lst]
+        matrices = {} if isinstance(data, str) else data.matrices
         if self.storage_info is None:
             matrices_by_mid = self.fetch_dumps(new_mids)
             for mid in new_mids:
@@ -121,17 +114,15 @@ class SQL(Persistence, ABC):
                 matrices[name_by_mid[mid]] = UUID(mid)
 
         # Fetch history.
-        serialized_hist = [
-            {"id": id_, "desc": json.loads(strtransf)} for id_, strtransf in self.fetch_dumps(hids).items()
-        ]
+        serialized_hist = self.fetch_dumps(hids)
         # TODO: deserializar antes de por no histórico
 
         # TODO: failure and timeout should be stored/fetched!
         # TODO: would it be worth to update uuid/uuids here, instead of recalculating it from the start at Data.init?
-        uuids = data.uuids
+        uuids = {} if isinstance(data, str) else data.uuids
         uuids.update(dict(zip(names, map(UUID, mids))))
-        return Picklable(uuid=uuid, uuids=uuids, history=serialized_hist,
-                         failure=None, storage_info=self.storage_info, **matrices)
+        return Picklable(uuid=UUID(did), uuids=uuids, history=serialized_hist,
+                         failure=None, storage_info=self.storage_info, inner=inner, **matrices)
 
     def fetch_matrix(self, id):
         # TODO: quando faz select em algo que não existe, fica esperando
@@ -196,10 +187,12 @@ class SQL(Persistence, ABC):
             create table if not exists data (
                 n integer NOT NULL primary key {self._auto_incr()},
                 id char(18) NOT NULL UNIQUE,
+                inner char(18),
                 names VARCHAR(255) NOT NULL,
                 matrices VARCHAR(2048), 
                 history VARCHAR(65535),
-                t TIMESTAMP 
+                t TIMESTAMP, 
+                FOREIGN KEY (inner) REFERENCES data(id)
             )"""
         )
         self.query(
@@ -245,12 +238,12 @@ class SQL(Persistence, ABC):
             self.insert_many(lst, "dump")
 
     def lock(self, data):
-        did = data.uuid.id
+        did = data if isinstance(data, str) else data.id
         if self.debug:
             print("Locking...", did)
 
-        sql = f"insert into data values (null,?,?,?,?,'0000-00-00 00:00:00')"
-        args = [did, "", "", ""]
+        sql = f"insert into data values (null,?,?,?,?,?,'0000-00-00 00:00:00')"
+        args = [did, "", "", "", ""]
         from sqlite3 import IntegrityError as IntegrityErrorSQLite
         from pymysql import IntegrityError as IntegrityErrorMySQL
 

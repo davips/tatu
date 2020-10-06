@@ -17,18 +17,18 @@ from tatu.persistence import (
 
 
 class Pickle(Persistence):
-    def _delete_(self, data: Data, check_missing=True):
-        locked = self._filename("", data)
-        if check_missing and not Path(locked).exists():
-            raise MissingEntryException("Does not exist:", data.id)
-        os.remove(locked)
-
     def __init__(self, db="tatu-sqlite", compress=True):
         super().__init__(timeout=1)
         self.db = db
         self.compress = compress
         if not Path(db).exists():
             os.mkdir(db)
+
+    def _delete_(self, data: Data, check_missing=True):
+        locked = self._filename("", data)
+        if check_missing and not Path(locked).exists():
+            raise MissingEntryException("Does not exist:", data.id)
+        os.remove(locked)
 
     def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Picklable]:
         # TODO: deal with fields and missing fields?
@@ -92,7 +92,7 @@ class Pickle(Persistence):
         # Not very efficient.  TODO: memoize extraction of fields from JSON?
         # uuids = [json.loads(tr)['uuid'][:6] for tr in data.history]
         # rest = f"-".join(uuids) + f".{zip}.dump"
-        rest = f"{data.id}.{zip}.dump"
+        rest = f"{data if isinstance(data,str) else data.id}.{zip}.dump"
         if prefix == "*":
             query = self.db + "/*" + rest
             lst = glob(query)
