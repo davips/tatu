@@ -16,12 +16,12 @@ class OkaSt(Persistence):
     def _open(self):
         pass
 
-    def __init__(self, token, storage_info=None, post=False, url="http://localhost:5000"):
+    def __init__(self, token, blocking=False, storage_info=None, post=False, url="http://localhost:5000"):
         self.headers = {'Authorization': 'Bearer ' + token}
         self.storage_info = storage_info
         self.url = url
         self.post = post
-        super().__init__()  # TODO: check if threading will destroi oka
+        super().__init__(blocking, timeout=6)  # TODO: check if threading will destroi oka
 
     def _store_(self, data: Data, check_dup=True):
         packed = pack(data)  # TODO: consultar previamente o que falta enviar, p/ minimizar trafego

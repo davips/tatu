@@ -17,12 +17,12 @@ from tatu.persistence import (
 
 
 class Pickle(Persistence):
-    def __init__(self, db="tatu-sqlite", compress=True):
-        super().__init__(timeout=1)
+    def __init__(self, blocking=False, db="tatu-sqlite", compress=True):
         self.db = db
         self.compress = compress
         if not Path(db).exists():
             os.mkdir(db)
+        super().__init__(blocking, timeout=1)
 
     def _delete_(self, data: Data, check_missing=True):
         locked = self._filename("", data)
@@ -92,7 +92,7 @@ class Pickle(Persistence):
         # Not very efficient.  TODO: memoize extraction of fields from JSON?
         # uuids = [json.loads(tr)['uuid'][:6] for tr in data.history]
         # rest = f"-".join(uuids) + f".{zip}.dump"
-        rest = f"{data if isinstance(data,str) else data.id}.{zip}.dump"
+        rest = f"{data if isinstance(data, str) else data.id}.{zip}.dump"
         if prefix == "*":
             query = self.db + "/*" + rest
             lst = glob(query)

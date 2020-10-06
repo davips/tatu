@@ -7,7 +7,7 @@ from tatu.sql.abc.sql import SQL
 
 
 class MySQL(SQL):
-    def __init__(self, db="user:pass@ip/db", storage_info=None, debug=True, read_only=False):
+    def __init__(self, db="user:pass@ip/db", blocking=False, storage_info=None, debug=True, read_only=False):
         server = db.split("/")[0]
         db = db.split("/")[1]
         self.info = server + ", " + db
@@ -21,7 +21,7 @@ class MySQL(SQL):
         if "-" in db:
             raise Exception("'-' not allowed in db name!")
         self.hostname = socket.gethostname()
-        super().__init__(timeout=8)
+        super().__init__(blocking, timeout=8)
 
     def _open(self):
         """

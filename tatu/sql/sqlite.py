@@ -5,14 +5,14 @@ from tatu.sql.abc.sql import SQL
 
 
 class SQLite(SQL):
-    def __init__(self, db="tatu-sqlite", storage_info=None, debug=not False, read_only=False):
+    def __init__(self, db="tatu-sqlite", blocking=False, storage_info=None, debug=not False, read_only=False):
         self.info = db
         self.read_only = read_only
         self.hostname = socket.gethostname()
         self.database = db + ".db"
         self.storage_info = storage_info
         self.debug = debug
-        super().__init__(timeout=2)
+        super().__init__(blocking, timeout=2)
 
     def _open(self):
         # isolation_level=None -> SQLite autocommiting

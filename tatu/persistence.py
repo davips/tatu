@@ -28,13 +28,15 @@ class Persistence(ABC):
 
     # Time spent hoping the thread will be useful again.
 
-    def __init__(self, timeout=5):
-        self.timeout = timeout
-        if self.__class__.mythread is None:
-            # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
-            self.__class__.mythread = threading.Thread(target=self._worker, daemon=False)
-            print("Starting thread for", self.__class__.__name__)
-            self.mythread.start()
+    def __init__(self, blocking, timeout):
+        self.blocking = blocking
+        if not self.blocking:
+            self.timeout = timeout
+            if self.__class__.mythread is None:
+                # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
+                self.__class__.mythread = threading.Thread(target=self._worker, daemon=False)
+                print("Starting thread for", self.__class__.__name__)
+                self.mythread.start()
 
     def _worker(self):
         with self.safety():
@@ -107,7 +109,10 @@ class Persistence(ABC):
 
     def delete(self, data: Data, check_missing=True, recursive=True):
         while data:
-            self.queue.put({"delete": data.picklable, "check_missing": check_missing})
+            if self.blocking:
+                self._delete_(data, check_missing, recursive)
+            else:
+                self.queue.put({"delete": data.picklable, "check_missing": check_missing})
             if not recursive:
                 break
             data = data.inner
@@ -146,9 +151,12 @@ class Persistence(ABC):
             # how to process inner data, it only knows how to apply a step to the outer data as a whole.
         # insert from last to first due to foreign key constraint on inner->data.id
         for job in reversed(lst):
-            self.queue.put(job)
+            if self.blocking:
+                self._store_(data, check_dup)
+            else:
+                self.queue.put(job)
 
-    def fetch(self, data: Data, lock=False) -> AbsData:
+    def fetch(self, data: Data, lock=False, recursive=True) -> AbsData:
         """Fetch data from DB.
 
         Parameters
@@ -169,31 +177,36 @@ class Persistence(ABC):
         """
         # TODO: accept id string
         # TODO: create Hollow: jsonable vai precisar conter tipo da classe (Picklable, Hollow, ...)
-        data = self.fetch_picklable(data, lock)
+        data = self.fetch_picklable(data, lock, recursive)
         return data and data.unpicklable
 
-    def fetch_picklable(self, data: Data, lock=False) -> Optional[Picklable]:
+    def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Optional[Picklable]:
         data = data.picklable
         lst = []
         while data:
-            self.queue.put({"fetch": data, "lock": lock})
+            if self.blocking:
+                output = self._fetch_picklable_(data,lock)
+            else:
+                self.queue.put({"fetch": data, "lock": lock})
 
-            # Wait for result.
-            output = self.outqueue.get()
-            if not (output is None or isinstance(output, AbsData)):
-                id = data if isinstance(data, str) else data.id
-                print("type:", type(output), output)
-                print(f"Couldn't fetch {id}. Quiting...")
+                # Wait for result.
+                output = self.outqueue.get()
+                if not (output is None or isinstance(output, AbsData)):
+                    id = data if isinstance(data, str) else data.id
+                    print("type:", type(output), output)
+                    print(f"Couldn't fetch {id}. Quiting...")
+                    self.outqueue.task_done()
+                    exit()
                 self.outqueue.task_done()
-                exit()
-            self.outqueue.task_done()
 
             if output is None or not (output.inner is None or isinstance(output.inner, str)):
                 # Task complete if None or if inner is already build (e.g. coming from Pickle).
                 return output
 
-            data = output.inner
             lst.append(output)
+            if not recursive:
+                break
+            data = output.inner
 
         # reconstruct lineage
         return reduce(lambda inner, outer: outer.replace([], inner=inner), reversed(lst))
