@@ -7,7 +7,6 @@ from queue import Empty
 from typing import Optional
 
 from aiuna.content.data import Data, Picklable
-from aiuna.content.specialdata import UUIDData
 from cruipto.uuid import UUID
 from transf.absdata import AbsData
 from transf.step import Step
@@ -185,7 +184,7 @@ class Storage(ABC):
         return data and data.unpicklable
 
     def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Optional[Picklable]:
-        data = data.picklable
+        data = data.picklable if isinstance(data, AbsData) else data
         lst = []
         while data is not None:
             if self.blocking:
@@ -257,7 +256,7 @@ class Storage(ABC):
         uuid = UUID()
         data = None
         lastuuid = UUID(id_) if isinstance(id_, str) else id_
-        firstdata = self.fetch(UUIDData(lastuuid))
+        firstdata = self.fetch(lastuuid)
         if firstdata is None:
             print(f"Data {id_} not found!")
             exit()
@@ -284,7 +283,7 @@ class Storage(ABC):
                 uuid.generate_avatar(f"{folder}/{filename}")
             lst.append(dic)
             uuid = uuid * transformeruuid
-            data = self.fetch(UUIDData(uuid))
+            data = self.fetch(uuid)
 
         return lst
 

@@ -2,7 +2,6 @@ import json
 
 from aiuna.file import File
 from tatu.okast import OkaSt
-from aiuna.content.specialdata import UUIDData
 from aiuna.creation import read_arff
 
 with open("token.txt", "r") as f:
@@ -17,5 +16,5 @@ print("Storing...")
 storage.store(data)  # TODO: it is always sending the file, even when not needed
 
 print("Fetching...")
-d = storage.fetch(UUIDData(data.id))
+d = storage.fetch(data.id)
 print(d)

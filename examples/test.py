@@ -4,7 +4,6 @@ from zipfile import ZipFile
 from tatu.storage import DuplicateEntryException
 from tatu.pickle_ import Pickle
 from tatu.sql.mysql import MySQL
-from aiuna.content.specialdata import UUIDData
 from aiuna.creation import read_arff
 
 lst = Pickle().list_by_name('iris')
@@ -22,7 +21,7 @@ try:
     Pickle().store(data)
 except DuplicateEntryException:
     print('Duplicate! Ignored.')
-d = Pickle().fetch(UUIDData(data.uuid))
+d = Pickle().fetch(data.uuid)
 print('ok!', data.id, data.history)
 print('ok!', d.id, d.history)
 
@@ -60,11 +59,11 @@ print("fetch", test.fetch(data.hollow()).id)
 # print(data.X)
 
 # # Resgatar por UUID ###########################
-byuuid = Pickle().fetch(UUIDData(data.uuid))
+byuuid = Pickle().fetch(data.uuid)
 print("byuuid", byuuid)
 
 uuid = "ĹЇЖȡfĭϹƗͶэգ8Ƀű"
-data = Pickle().fetch(UUIDData(uuid))
+data = Pickle().fetch(uuid)
 print("dddddddddddd", data.matrices.keys())
 storage = MySQL(db="user:senha@143.107.183.114/base")
 # storage.store(data)
