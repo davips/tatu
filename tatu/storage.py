@@ -179,7 +179,6 @@ class Storage(ABC):
         LockedEntryException, FailedEntryException
         """
         # TODO: accept id string
-        # TODO: create Hollow: jsonable vai precisar conter tipo da classe (Picklable, Hollow, ...)
         data = self.fetch_picklable(data, lock, recursive)
         return data and data.unpicklable
 

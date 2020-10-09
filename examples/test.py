@@ -47,7 +47,7 @@ try:
 except DuplicateEntryException:
     print('Duplicate! Ignored.')
 
-print("fetch", test.fetch(data.hollow()).id)
+print("fetch", test.fetch(data).id)
 
 # # Teste de leitura ############################
 # print('Getting Data information-only objects...')

@@ -75,13 +75,13 @@ class Pickle(Storage):
 
         self._dump(data, filename)
 
-    def list_by_name(self, substring, only_original=True):  # TODO: take advantage of lazy data, instead of using hollow
+    def list_by_name(self, substring, only_original=True):
         datas = []
         path = self.db + f"/*{substring}*-*.dump"
         for file in sorted(glob(path), key=os.path.getmtime):
             data = self._load(file)
             if only_original and len(data.history) == 1:
-                datas.append(data.hollow(tuple()))
+                datas.append(data)  # Data is now fully lazy, so nothing will be retrieved.
         return datas
 
     def fetch_matrix(self, id):
