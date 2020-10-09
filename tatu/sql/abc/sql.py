@@ -41,6 +41,8 @@ class SQL(Storage, ABC):
 
         # Check if dumps of matrices/vectors already exist.
         qmarks = ",".join(["?"] * len(data.uuids))
+        print(">>>>>>>>", qmarks)
+        print("idslllllllllllll", data.ids_lst)
         self.query(f"select id from dump where id in ({qmarks})", data.ids_lst)
         rall = self.get_all()
         stored_hashes = [row["id"] for row in rall]
@@ -121,8 +123,7 @@ class SQL(Storage, ABC):
         # TODO: would it be worth to update uuid/uuids here, instead of recalculating it from the start at Data.init?
         uuids = {} if isinstance(data, str) else data.uuids
         uuids.update(dict(zip(names, map(UUID, mids))))
-        return Picklable(uuid=UUID(did), uuids=uuids, history=serialized_hist,
-                         failure=None, storage_info=self.storage_info, inner=inner, **matrices)
+        return Picklable(uuid=UUID(did), uuids=uuids, history=serialized_hist, storage_info=self.storage_info, inner=inner, **matrices)
 
     def fetch_matrix(self, id):
         # TODO: quando faz select em algo que não existe, fica esperando
