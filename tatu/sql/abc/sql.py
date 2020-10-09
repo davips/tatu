@@ -186,8 +186,8 @@ class SQL(Storage, ABC):
             f"""
             create table if not exists data (
                 n integer NOT NULL primary key {self._auto_incr()},
-                id char(18) NOT NULL UNIQUE,
-                inn char(18),
+                id char(23) NOT NULL UNIQUE,
+                inn char(23),
                 names VARCHAR(255) NOT NULL,
                 matrices VARCHAR(2048), 
                 history TEXT,
@@ -199,7 +199,7 @@ class SQL(Storage, ABC):
             f"""
             create table if not exists dump (
                 n integer NOT NULL primary key {self._auto_incr()},
-                id char(18) NOT NULL UNIQUE,
+                id char(23) NOT NULL UNIQUE,
                 value LONGBLOB NOT NULL
             )"""
         )
