@@ -211,7 +211,7 @@ class Storage(ABC):
             data = output.inner
 
         # reconstruct lineage
-        return reduce(lambda inner, outer: outer.replace([], inner=inner), reversed(lst))
+        return reduce(lambda inner, outer: outer.update([], inner=inner), reversed(lst))
 
     @abstractmethod
     def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Data]:
