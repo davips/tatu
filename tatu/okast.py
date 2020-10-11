@@ -16,6 +16,7 @@ class OkaSt(Storage):
     def _open(self):
         pass
 
+    # TODO should okast point to a real url by default?
     def __init__(self, token, alias=None, blocking=False, storage_info=None, url="http://localhost:5000"):
         self.headers = {'Authorization': 'Bearer ' + token}
         self.storage_info = storage_info
