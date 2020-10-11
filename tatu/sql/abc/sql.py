@@ -1,7 +1,7 @@
 import json
 import warnings
 from abc import abstractmethod, ABC
-from typing import Optional
+from typing import Optional, List
 
 from aiuna.compression import unpack, pack
 from aiuna.content.data import Data, Picklable
@@ -10,8 +10,13 @@ from tatu.storage import Storage, DuplicateEntryException, LockedEntryException,
 
 
 class SQL(Storage, ABC):
+    from transf.absdata import AbsData
     cursor = None
     storage_info = None
+
+    def fetch_children(self, data: Data) -> List[AbsData]:
+        self.query(f"select id from data where parent=?", [data.id])
+        return [self._build_fetched("exnihilo", result) for result in self.get_all()]
 
     # TODO: check if all queries are safely interpolated
 
@@ -29,6 +34,7 @@ class SQL(Storage, ABC):
         # The sequence of queries is planned to minimize traffic and CPU load,
         # otherwise it would suffice to just send 'insert or ignore' of dumps.
         uuid = data.uuid
+        parentid = data.parentuuid.id
         self.query(f"select t from data where id=?", [uuid.id])
         rone = self.get_one()
 
@@ -41,8 +47,6 @@ class SQL(Storage, ABC):
 
         # Check if dumps of matrices/vectors already exist.
         qmarks = ",".join(["?"] * len(data.uuids))
-        print(">>>>>>>>", qmarks)
-        print("idslllllllllllll", data.ids_lst)
         self.query(f"select id from dump where id in ({qmarks})", data.ids_lst)
         rall = self.get_all()
         stored_hashes = [row["id"] for row in rall]
@@ -54,17 +58,17 @@ class SQL(Storage, ABC):
                 dic[u.id] = data.field_dump(name)
         self.store_dump(dic)
 
-        # Insert history.  #TODO: replace by recursive table PARENT
+        # Insert history. #TODO jsonify qnd items vierem como dicts
         dic = {hid: pack(stepstr) for hid, stepstr in data.history.items()}
         self.store_dump(dic)
 
         # Insert Data object.
         if not locked and check_dup:
             # ensure UNIQUE constraint (just in case something changed in the meantime since select*)
-            sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
+            sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
         else:
-            sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
-        data_args = [uuid.id, data.inner and data.inner.id, data.matrix_names_str, data.ids_str, data.history_str]
+            sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
+        data_args = [uuid.id, data.inner and data.inner.id, parentid, data.matrix_names_str, data.ids_str, data.history_str]
         # from sqlite3 import IntegrityError as IntegrityErrorSQLite
         # from pymysql import IntegrityError as IntegrityErrorMySQL
         # try:
@@ -89,10 +93,13 @@ class SQL(Storage, ABC):
 
         if result is None:
             if lock:
-                self.lock(did)
+                self.lock(data)
             return None
         # values_by_id = {row['id']: row['value'] for row in rall}
+        return self._build_fetched(data, result)
 
+    def _build_fetched(self, data, result):
+        did = data.id
         if result["names"] == "":
             print("W: Previously locked by other process.", did)
             raise LockedEntryException(did)
@@ -117,10 +124,12 @@ class SQL(Storage, ABC):
 
         # Fetch history.
         serialized_hist = self.fetch_dumps(hids)
-        # TODO: deserializar antes de por no histórico
+        # REMINDER: não deserializar antes de por no histórico, pois o data.picklable manda serializado; senão, não fica picklable
+        #   a única forma seria implementar a travessia recusrsiva de subcomponentes para deixar como dicts (picklable) e depois jsonizar apenas aqui.
+        #   é preciso ver se há alguma vantagem nisso; talvez desempenho e acessibilidade de chaves dos dicts; por outro lado,
+        #   da forma atual o json faz tudo junto num travessia única
 
-        # TODO: failure and timeout should be stored/fetched!
-        # TODO: would it be worth to update uuid/uuids here, instead of recalculating it from the start at Data.init?
+        # TODO: failure and timeout should be stored/fetched! ver como fica na versao lazy, tipo: é só guardar _matrices? ou algo mais?
         uuids = {} if isinstance(data, str) else data.uuids
         uuids.update(dict(zip(names, map(UUID, mids))))
         return Picklable(uuid=UUID(did), uuids=uuids, history=serialized_hist, storage_info=self.storage_info, inner=inner, **matrices)
@@ -183,17 +192,22 @@ class SQL(Storage, ABC):
 
         # Data - Up to 102 matrices and 3277 transformations per row
         # ========================================================
+        # REMINDER 'inner' is a SQL reserved word.
+        # REMINDER d.parent = d.uuid / lastStep.uuid; the field is here just to speed up search of children.
+        # TODO create index on column 'id' (and FKs if needed)
         self.query(
             f"""
             create table if not exists data (
                 n integer NOT NULL primary key {self._auto_incr()},
                 id char(23) NOT NULL UNIQUE,
                 inn char(23),
+                parent char(23) NOT NULL UNIQUE,
                 names VARCHAR(255) NOT NULL,
                 matrices VARCHAR(2048), 
                 history TEXT,
                 t TIMESTAMP, 
-                FOREIGN KEY (inn) REFERENCES data(id)
+                FOREIGN KEY (inn) REFERENCES data(id),
+                FOREIGN KEY (parent) REFERENCES data(id)
             )"""
         )
         self.query(
@@ -239,12 +253,14 @@ class SQL(Storage, ABC):
             self.insert_many(lst, "dump")
 
     def lock(self, data):
-        did = data if isinstance(data, str) else data.id
+        if isinstance(data, str):
+            raise Exception("Cannot lock only by data UUID, a Data object is required because the data parent UUID is needed by DBMS constraints.")
+        did, pid = data.id, data.parentuuid.id
         if self.debug:
             print("Locking...", did)
 
-        sql = f"insert into data values (null,?,?,?,?,?,'0000-00-00 00:00:00')"
-        args = [did, "", "", "", ""]
+        sql = f"insert into data values (null,?,?,?,?,?,?,'0000-00-00 00:00:00')"
+        args = [did, "", pid, "", "", ""]
         from sqlite3 import IntegrityError as IntegrityErrorSQLite
         from pymysql import IntegrityError as IntegrityErrorMySQL
 
@@ -283,7 +299,7 @@ class SQL(Storage, ABC):
             import sys
             import traceback
 
-            msg = self.info + "\n" + msg
+            msg = "STORAGE DBG:" + self.info + "\n" + msg
             # Gather the information from the original exception:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             # Format the original exception for a nice printout:
