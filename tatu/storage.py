@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from functools import reduce
 from multiprocessing import JoinableQueue, Queue
 from queue import Empty
-from typing import Optional
+from typing import Optional, List
 
 from aiuna.content.data import Data, Picklable
 from cruipto.uuid import UUID
@@ -68,6 +68,10 @@ class Storage(ABC):
                 try:
                     if "unlock" in job:
                         self.unlock(job["unlock"])
+                    elif "children" in job:
+                        ret = self._fetch_children_(job["children"])
+                        self.outqueue.put(ret)
+                        self.outqueue.join()
                     elif "delete" in job:
                         self._delete_(job["delete"], job["check_missing"])
                     elif "store" in job:
@@ -285,6 +289,24 @@ class Storage(ABC):
             data = self.fetch(uuid)
 
         return lst
+
+    @abstractmethod
+    def _fetch_children_(self, data: Data) -> List[AbsData]:
+        pass
+
+    # TODO o q fazer qnd uuid nao existe? ta dizendo q nao tem filho
+    def fetch_children(self, data: Data) -> List[AbsData]:
+        self.queue.put({"children": data})
+
+        # Wait for result.
+        output = self.outqueue.get()
+        if not isinstance(output, list):
+            print("type:", type(output), output)
+            print(f"Couldn't fetch children of {id}. Quiting...")
+            self.outqueue.task_done()
+            exit()
+        self.outqueue.task_done()
+        return output
 
 
 class UnlockedEntryException(Exception):

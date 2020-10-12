@@ -1,6 +1,6 @@
 import json
 from io import BytesIO
-from typing import Optional
+from typing import Optional, List
 
 import requests
 
@@ -8,10 +8,14 @@ from tatu.storage import Storage
 from aiuna.compression import pack, unpack
 
 from aiuna.content.data import Data
+from transf.absdata import AbsData
 
 
 class OkaSt(Storage):
     """se data já existir, não tenta criar post!"""
+
+    def _fetch_children_(self, data: Data) -> List[AbsData]:
+        raise Exception("not ready")
 
     def _open(self):
         pass

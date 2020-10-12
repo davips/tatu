@@ -14,7 +14,7 @@ class SQL(Storage, ABC):
     cursor = None
     storage_info = None
 
-    def fetch_children(self, data: Data) -> List[AbsData]:
+    def _fetch_children_(self, data: Data) -> List[AbsData]:
         self.query(f"select id from data where parent=?", [data.id])
         return [self._build_fetched("exnihilo", result) for result in self.get_all()]
 
@@ -99,7 +99,7 @@ class SQL(Storage, ABC):
         return self._build_fetched(data, result)
 
     def _build_fetched(self, data, result):
-        did = data.id
+        did = data if isinstance(data, str) else data.id
         if result["names"] == "":
             print("W: Previously locked by other process.", did)
             raise LockedEntryException(did)
@@ -108,7 +108,6 @@ class SQL(Storage, ABC):
         mids = result["matrices"].split(",")
         hids = result["history"].split(",")
         inner = result["inn"]
-
         name_by_mid = dict(zip(mids, names))
 
         # Fetch matrices (lazily, if storage_info is provided).
@@ -121,7 +120,6 @@ class SQL(Storage, ABC):
         else:
             for mid in new_mids:
                 matrices[name_by_mid[mid]] = UUID(mid)
-
         # Fetch history.
         serialized_hist = self.fetch_dumps(hids)
         # REMINDER: não deserializar antes de por no histórico, pois o data.picklable manda serializado; senão, não fica picklable
@@ -201,15 +199,16 @@ class SQL(Storage, ABC):
                 n integer NOT NULL primary key {self._auto_incr()},
                 id char(23) NOT NULL UNIQUE,
                 inn char(23),
-                parent char(23) NOT NULL UNIQUE,
+                parent char(23) UNIQUE,
                 names VARCHAR(255) NOT NULL,
                 matrices VARCHAR(2048), 
                 history TEXT,
                 t TIMESTAMP, 
-                FOREIGN KEY (inn) REFERENCES data(id),
-                FOREIGN KEY (parent) REFERENCES data(id)
+                FOREIGN KEY (inn) REFERENCES data(id)
             )"""
         )
+        # REMINDER não pode ter [FOREIGN KEY (parent) REFERENCES data(id)] pq nem sempre o parent vai pra base
+
         self.query(
             f"""
             create table if not exists dump (
@@ -253,8 +252,9 @@ class SQL(Storage, ABC):
             self.insert_many(lst, "dump")
 
     def lock(self, data):
-        if isinstance(data, str):
-            raise Exception("Cannot lock only by data UUID, a Data object is required because the data parent UUID is needed by DBMS constraints.")
+        # REMINDER relaxing constraints
+        # if isinstance(data, str):
+        #     raise Exception("Cannot lock only by data UUID, a Data object is required because the data parent UUID is needed by DBMS constraints.")
         did, pid = data.id, data.parentuuid.id
         if self.debug:
             print("Locking...", did)

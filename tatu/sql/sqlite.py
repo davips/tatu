@@ -1,7 +1,10 @@
 import socket
 import sqlite3
+from typing import List
 
+from aiuna.content.data import Data
 from tatu.sql.abc.sql import SQL
+from transf.absdata import AbsData
 
 
 class SQLite(SQL):

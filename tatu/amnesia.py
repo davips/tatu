@@ -1,10 +1,14 @@
-from typing import Optional
+from typing import Optional, List
 
 from aiuna.content.data import Data
 from tatu.storage import Storage
+from transf.absdata import AbsData
 
 
 class Amnesia(Storage):
+    def _fetch_children_(self, data: Data) -> List[AbsData]:
+        raise Exception("(Pseudo)Storage Amnesia cannot retrieve children!")
+
     def __init__(self):
         super().__init__(blocking=True, timeout=None)
 

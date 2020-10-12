@@ -3,7 +3,7 @@ import os
 import traceback
 from glob import glob
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from aiuna.content.data import Data, Picklable
 from tatu.disk import save, load
@@ -14,9 +14,13 @@ from tatu.storage import (
     DuplicateEntryException,
     UnlockedEntryException, MissingEntryException,
 )
+from transf.absdata import AbsData
 
 
 class Pickle(Storage):
+    def _fetch_children_(self, data: Data) -> List[AbsData]:
+        raise Exception("Storage Pickle cannot retrieve children!")
+
     def __init__(self, blocking=False, db="tatu-sqlite", compress=True):
         self.db = db
         self.compress = compress
