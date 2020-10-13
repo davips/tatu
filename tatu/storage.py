@@ -24,6 +24,7 @@ class Storage(ABC):
     outqueue = None
     mythread = None
     open = False
+    _target_storage = None
 
     # Time spent hoping the thread will be useful again.
 
@@ -72,6 +73,12 @@ class Storage(ABC):
                 try:
                     if "unlock" in job:
                         self.unlock(job["unlock"])
+                    elif "sync" in job:
+                        self._sync()
+                    elif "fetch at" in job:
+                        ret = self._fetch_at_(job["fetch at"])
+                        self.outqueue.put(ret)
+                        self.outqueue.join()
                     elif "delete" in job:
                         self._delete_(job["delete"], job["check_missing"])
                     elif "store" in job:
@@ -129,7 +136,7 @@ class Storage(ABC):
 
         Returns
         -------
-        Data or None
+        List of inserted Data UUIDs (only meaningful for Data objects with inner)
 
         Exception
         ---------
@@ -152,11 +159,11 @@ class Storage(ABC):
             # how to process inner data, it only knows how to apply a step to the outer data as a whole.
         # insert from last to first due to foreign key constraint on inner->data.id
         for job in reversed(lst):
-            print("JJJJJJJJJJJJJJJJJJJJJ", job["store"].id, job["store"].inner and job["store"].inner.id, 888888888888)
             if self.blocking:
                 self._store_(job["store"], check_dup)
             else:
                 self.queue.put(job)
+        return [job["store"].id for job in lst]
 
     def fetch(self, data: Data, lock=False, recursive=True) -> AbsData:
         """Fetch data from DB.
@@ -181,24 +188,30 @@ class Storage(ABC):
         data = self.fetch_picklable(data, lock, recursive)
         return data and data.unpicklable
 
-    def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Optional[Picklable]:
+    def fetch_picklable(self, data: Data, lock=False, recursive=True, same_thread=False) -> Optional[Picklable]:
         data = data.picklable if isinstance(data, AbsData) else data
         lst = []
         while data is not None:
             if self.blocking:
                 output = self._fetch_(data, lock)
             else:
-                self.queue.put({"fetch": data, "lock": lock})
+                if same_thread:
+                    output = self._fetch_at_(data) if isinstance(data, int) else self._fetch_(data, lock)
+                else:
+                    if isinstance(data, int):
+                        self.queue.put({"fetch at": data, "lock": lock})
+                    else:
+                        self.queue.put({"fetch": data, "lock": lock})
 
-                # Wait for result.
-                output = self.outqueue.get()
-                if not (output is None or isinstance(output, AbsData)):
-                    id = data if isinstance(data, str) else data.id
-                    print("type:", type(output), output)
-                    print(f"Couldn't fetch {id}. Quiting...")
+                    # Wait for result.
+                    output = self.outqueue.get()
+                    if not (output is None or isinstance(output, AbsData)):
+                        id = data if isinstance(data, str) else data.id
+                        print("type:", type(output), output)
+                        print(f"Couldn't fetch {id}. Quiting...")
+                        self.outqueue.task_done()
+                        exit()
                     self.outqueue.task_done()
-                    exit()
-                self.outqueue.task_done()
 
             if output is None or not (output.inner is None or isinstance(output.inner, str)):
                 # Task complete if None or if inner is already build (e.g. coming from Pickle).
@@ -210,6 +223,8 @@ class Storage(ABC):
             data = output.inner
 
         # reconstruct lineage
+        # if data is None:   <- nao embro o motivo de por isso errado aqui
+        #     return None
         return reduce(lambda inner, outer: outer.replace([], inner=inner), reversed(lst))
 
     @abstractmethod
@@ -227,11 +242,14 @@ class Storage(ABC):
     def unlock(self, data):
         self.queue.put({"unlock": data})
 
-    @abstractmethod
-    def fetch_at(self, position):
+    def fetch_at(self, position, recursive=True, same_thread=False):
         """Return the position-th Data object by time of insertion.
 
         Starts at 0."""
+        return self.fetch_picklable(position, lock=False, recursive=recursive, same_thread=same_thread)
+
+    @abstractmethod
+    def _fetch_at_(self, position):
         pass
 
     @abstractmethod
@@ -243,23 +261,33 @@ class Storage(ABC):
         """Return how many Data objects are stored."""
         return self._size_()
 
-    def sync(self, storage):
-        """Sync, sending Data objects from this storage to the provided one.
-
-        Perform a binary search with fetch queries to find the last already inserted Data object."""
+    def _sync(self):
         pos = 0
         delta = self.size // 2
-        miss_pos = self.size - 1
-        while delta > 0 and pos > 0:
-            d = self.fetch_at(pos)
-            if storage.fetch(d):
+        miss_pos = self.size
+        while delta > 0 and pos >= 0:
+            d = self._fetch_at_(pos)
+            if self._target_storage.fetch(d):
                 pos += delta
             else:
                 miss_pos = pos
                 pos -= delta
             delta //= 2
+        already_inserted = set()
         for i in range(miss_pos, self.size):
-            storage.store(self.fetch_at(i))
+            data = self.fetch_at(i, same_thread=True)
+            if data and data.id not in already_inserted:
+                already_inserted.update(self._target_storage.store(data))
+        self._target_storage = None
+
+    def sync(self, storage):
+        """Sync, sending Data objects from this storage to the provided one.
+
+        Perform a binary search with fetch queries to find the last already inserted Data object."""
+        if self._target_storage:
+            raise Exception("Cannot sync, another syncing was started!")
+        self._target_storage = storage
+        self.queue.put({"sync": None})
 
 
 class UnlockedEntryException(Exception):

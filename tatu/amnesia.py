@@ -26,5 +26,8 @@ class Amnesia(Storage):
     def _unlock_(self, data):
         pass
 
-    def list_by_name(self, substring, only_historyless=True):
-        return []
+    def _fetch_at_(self, position):
+        return None
+
+    def _size_(self):
+        return 0

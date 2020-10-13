@@ -86,14 +86,16 @@ class SQL(Storage, ABC):
         # else:
         print(f": Data inserted", uuid)
 
-    def _fetch_core_(self, data, result, lock) -> Optional[Picklable]:
-        pass
-
     def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
         # Fetch data info.
         did = data if isinstance(data, str) else data.id
         self.query(f"select * from data where id=?", [did])
         result = self.get_one()
+        return self._fetch_core_(data, result, lock)
+
+    def _fetch_core_(self, data, result, lock) -> Optional[Picklable]:
+        # Fetch data info.
+        did = data if isinstance(data, str) else data.id
 
         # Fetch data info.
         if result is None:
@@ -161,11 +163,6 @@ class SQL(Storage, ABC):
         # if not locked:
         #     raise UnlockedEntryException('Cannot unlock if it is not locked!')
         self.query(f"delete from data where id=?", [data.uuid.id])
-
-    def list_by_name(self, substring, only_historyless=True):
-        # TODO: Pra fins de fetchbylist, pode ser usado o próprio Data se a
-        #       implementação passar a ser lazy. (ORM-like behavior)
-        pass
 
     @staticmethod
     @abstractmethod
@@ -322,8 +319,8 @@ class SQL(Storage, ABC):
             sql = sql.replace("insert or ignore", "insert ignore")
         self.cursor.executemany(sql, list_of_tuples)
 
-    def fetch_at(self, position):
-        self.query("select * from data ORDER BY n LIMIT ?,1", [position])
+    def _fetch_at_(self, position):
+        self.query(f"select * from data ORDER BY n LIMIT {position},1")
         result = self.get_one()
         if result is None:
             return None

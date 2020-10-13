@@ -151,7 +151,7 @@ class Pickle(Storage):
     def _open(self):
         pass
 
-    def fetch_at(self, position):
+    def _fetch_at_(self, position):
         raise Exception("Pickle storage cannot fetch at a given position for now.")  # TODO order by file timestamp
 
     def _size_(self):
