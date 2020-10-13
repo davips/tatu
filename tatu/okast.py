@@ -1,9 +1,31 @@
+#  Copyright (c) 2020. Davi Pereira dos Santos
+#      This file is part of the tatu project.
+#      Please respect the license. Removing authorship by any means
+#      (by code make up or closing the sources) or ignoring property rights
+#      is a crime and is unethical regarding the effort and time spent here.
+#      Relevant employers or funding agencies will be notified accordingly.
+#
+#      tatu is free software: you can redistribute it and/or modify
+#      it under the terms of the GNU General Public License as published by
+#      the Free Software Foundation, either version 3 of the License, or
+#      (at your option) any later version.
+#
+#      tatu is distributed in the hope that it will be useful,
+#      but WITHOUT ANY WARRANTY; without even the implied warranty of
+#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#      GNU General Public License for more details.
+#
+#      You should have received a copy of the GNU General Public License
+#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import json
 from io import BytesIO
 from typing import Optional
 
 import requests
 
+from cruipto.uuid import UUID
 from tatu.storage import Storage
 from aiuna.compression import pack, unpack
 
@@ -13,13 +35,23 @@ from aiuna.content.data import Data
 class OkaSt(Storage):
     """se data já existir, não tenta criar post!"""
 
+    def _fetch_at_(self, position):
+        raise NotImplementedError
+
     # TODO should okast point to a real url by default?
     def __init__(self, token, alias=None, blocking=False, storage_info=None, url="http://localhost:5000"):
         self.headers = {'Authorization': 'Bearer ' + token}
         self.storage_info = storage_info
         self.url = url
         self.alias = alias
-        super().__init__(blocking, timeout=6)  # TODO: check if threading will destroi oka
+        super().__init__(blocking, timeout=6)  # TODO: check if threading will destroy oka
+
+    def _uuid_(self):
+        # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
+        response = requests.get(self.url + f"/api/tatu?uuid=storage", headers=self.headers)
+        if b"errors" in response.content:
+            raise Exception("Invalid token", response.content, self.url + f"?uuid=storage")
+        return UUID(json.loads(response.text)["uuid"])
 
     def _store_(self, data: Data, check_dup=True):
         packed = pack(data)  # TODO: consultar previamente o que falta enviar, p/ minimizar trafego
@@ -43,9 +75,6 @@ class OkaSt(Storage):
         raise NotImplemented
 
     def fetch_matrix(self, id):
-        raise NotImplemented
-
-    def list_by_name(self, substring, only_historyless=True):
         raise NotImplemented
 
     def _unlock_(self, data):

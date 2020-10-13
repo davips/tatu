@@ -1,3 +1,25 @@
+#  Copyright (c) 2020. Davi Pereira dos Santos
+#      This file is part of the tatu project.
+#      Please respect the license. Removing authorship by any means
+#      (by code make up or closing the sources) or ignoring property rights
+#      is a crime and is unethical regarding the effort and time spent here.
+#      Relevant employers or funding agencies will be notified accordingly.
+#
+#      tatu is free software: you can redistribute it and/or modify
+#      it under the terms of the GNU General Public License as published by
+#      the Free Software Foundation, either version 3 of the License, or
+#      (at your option) any later version.
+#
+#      tatu is distributed in the hope that it will be useful,
+#      but WITHOUT ANY WARRANTY; without even the implied warranty of
+#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#      GNU General Public License for more details.
+#
+#      You should have received a copy of the GNU General Public License
+#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import json
 import threading
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
@@ -9,10 +31,11 @@ from typing import Optional
 from aiuna.content.data import Data, Picklable
 from cruipto.uuid import UUID
 from transf.absdata import AbsData
+from transf.mixin.identification import withIdentification
 from transf.step import Step
 
 
-class Storage(ABC):
+class Storage(withIdentification, ABC):
     """
     This class stores and recovers results from some place.
     The children classes are expected to provide storage in e.g.:
@@ -256,7 +279,7 @@ class Storage(ABC):
     def _size_(self):
         pass
 
-    @cached_property
+    @property
     def size(self):
         """Return how many Data objects are stored."""
         return self._size_()
@@ -288,6 +311,12 @@ class Storage(ABC):
             raise Exception("Cannot sync, another syncing was started!")
         self._target_storage = storage
         self.queue.put({"sync": None})
+
+    def _name_(self):
+        return self.__class__.__name__
+
+    def _context_(self):
+        return self.__class__.__module__
 
 
 class UnlockedEntryException(Exception):

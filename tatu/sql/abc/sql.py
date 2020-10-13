@@ -1,3 +1,24 @@
+#  Copyright (c) 2020. Davi Pereira dos Santos
+#      This file is part of the tatu project.
+#      Please respect the license. Removing authorship by any means
+#      (by code make up or closing the sources) or ignoring property rights
+#      is a crime and is unethical regarding the effort and time spent here.
+#      Relevant employers or funding agencies will be notified accordingly.
+#
+#      tatu is free software: you can redistribute it and/or modify
+#      it under the terms of the GNU General Public License as published by
+#      the Free Software Foundation, either version 3 of the License, or
+#      (at your option) any later version.
+#
+#      tatu is distributed in the hope that it will be useful,
+#      but WITHOUT ANY WARRANTY; without even the implied warranty of
+#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#      GNU General Public License for more details.
+#
+#      You should have received a copy of the GNU General Public License
+#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import json
 import warnings
 from abc import abstractmethod, ABC
@@ -209,6 +230,17 @@ class SQL(Storage, ABC):
                 n integer NOT NULL primary key {self._auto_incr()},
                 id char(23) NOT NULL UNIQUE,
                 value LONGBLOB NOT NULL
+            )"""
+        )
+
+        # Table to speed up look up for already synced Data objects.
+        self.query(
+            f"""
+            create table if not exists sync (
+                n integer NOT NULL primary key {self._auto_incr()},
+                storage char(23) NOT NULL,
+                last char(23) NOT NULL,
+                unique key (storage, last)
             )"""
         )
 
