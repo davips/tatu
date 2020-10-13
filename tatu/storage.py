@@ -18,10 +18,10 @@ class Storage(ABC):
     The children classes are expected to provide storage in e.g.:
      SQLite, remote/local MongoDB, MySQL server, pickled or even CSV files.
     """
-    queue = Queue()
-    outqueue = JoinableQueue()
-    # process_lock = multiprocessing.Lock()
-    thread_lock = threading.Lock()
+    # process_lock = None
+    thread_lock = None
+    queue = None
+    outqueue = None
     mythread = None
     open = False
 
@@ -36,13 +36,17 @@ class Storage(ABC):
         else:
             self.timeout = timeout
             if self.__class__.mythread is None:
+                # self.process_lock = Nonemultiprocessing.Lock()
+                self.thread_lock = threading.Lock()
+                self.queue = Queue()
+                self.outqueue = JoinableQueue()
                 # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
                 self.__class__.mythread = threading.Thread(target=self._worker, daemon=False)
                 print("Starting thread for", self.__class__.__name__)
                 self.mythread.start()
 
     def _worker(self):
-        with self.safety():
+        with self.thread_lock:
             if not self.open:
                 try:
                     self._open()
@@ -87,12 +91,6 @@ class Storage(ABC):
 
             except Empty:
                 break
-
-    @classmethod
-    @contextmanager
-    def safety(cls):
-        with cls.thread_lock:  # , cls.process_lock:
-            yield
 
     # @abstractmethod
     # def dump(self,):
