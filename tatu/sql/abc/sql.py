@@ -240,7 +240,8 @@ class SQL(Storage, ABC):
                 n integer NOT NULL primary key {self._auto_incr()},
                 storage char(23) NOT NULL,
                 last char(23) NOT NULL,
-                unique key (storage, last)
+                t TIMESTAMP, 
+                unique (storage, last)
             )"""
         )
 
@@ -365,13 +366,27 @@ class SQL(Storage, ABC):
             return 0
         return rone["n"]
 
-    # FOREIGN KEY (attr) REFERENCES attr(aid)
-    # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
-    # self.query(f'CREATE INDEX nam1 ON dataset (attr)')
-    # insl timestamp NOT NULL     # unique(dataset, hist),
-    # spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
-    # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
-    # insd=insd, upd={self._now_function()} where did=?
-    #     x = coalesce(values(x), x),
-    #     from res left join data on dout = did
-    #     left join dataset on dataset = dsid where
+    def _last_synced_(self, storage, only_id=True):
+        if not only_id:
+            raise NotImplementedError
+        self.query("select last from sync where storage=? order by n desc limit 1", [storage])
+        rone = self.get_one()
+        if rone is None:
+            return None
+        return rone["last"]
+
+    def _mark_synced_(self, synced, storage):
+        qmarks = ",".join(["?"] * len(synced))
+        self.query(f"delete from sync where storage=? and last in ({qmarks})", [storage] + synced)
+        self.insert_many([[storage, did, {self._now_function()}] for did in synced], "sync")
+
+        # FOREIGN KEY (attr) REFERENCES attr(aid)
+        # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
+        # self.query(f'CREATE INDEX nam1 ON dataset (attr)')
+        # insl timestamp NOT NULL     # unique(dataset, hist),
+        # spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
+        # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
+        # insd=insd, upd={self._now_function()} where did=?
+        #     x = coalesce(values(x), x),
+        #     from res left join data on dout = did
+        #     left join dataset on dataset = dsid where

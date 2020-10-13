@@ -184,6 +184,12 @@ class Pickle(Storage):
     def _size_(self):
         raise Exception("Pickle storage cannot know its size for now.")  # TODO count files in folder
 
+    def _last_synced_(self, storage, only_id=True):
+        return None
+
+    def _mark_synced_(self, synced, storage):
+        pass
+
 
 # from tatu.sql.sqlite import SQLite
 # PickleServer().store(File("iris.arff").data)

@@ -48,6 +48,7 @@ class Storage(withIdentification, ABC):
     mythread = None
     open = False
     _target_storage = None
+    __eq__ = object.__eq__  # override withIdentification
 
     # Time spent hoping the thread will be useful again.
 
@@ -284,23 +285,35 @@ class Storage(withIdentification, ABC):
         """Return how many Data objects are stored."""
         return self._size_()
 
+    @abstractmethod
+    def _last_synced_(self, storage, only_id=True):
+        pass
+
+    def last_synced(self, storage, same_thread=False):
+        """Return last synced Data object."""
+        if not same_thread:
+            raise NotImplementedError
+        return self._last_synced_(storage, only_id=False)
+
+    @abstractmethod
+    def _mark_synced_(self, synced, storage):
+        pass
+
+    def mark_synced(self, synced, storage, same_thread=False):
+        """Record Data UUIDs as synced for the given (remote) storage."""
+        if not same_thread:
+            raise NotImplementedError
+        return self._mark_synced_(synced, storage)
+
     def _sync(self):
-        pos = 0
-        delta = self.size // 2
-        miss_pos = self.size
-        while delta > 0 and pos >= 0:
-            d = self._fetch_at_(pos)
-            if self._target_storage.fetch(d):
-                pos += delta
-            else:
-                miss_pos = pos
-                pos -= delta
-            delta //= 2
+        miss_pos = self.last_synced(self._target_storage, same_thread=True)
         already_inserted = set()
-        for i in range(miss_pos, self.size):
+        for i in range(miss_pos + 1, self.size):
             data = self.fetch_at(i, same_thread=True)
             if data and data.id not in already_inserted:
-                already_inserted.update(self._target_storage.store(data))
+                synced = self._target_storage.store(data)
+                self.mark_synced(synced, self._target_storage, same_thread=True)
+                already_inserted.update(synced)
         self._target_storage = None
 
     def sync(self, storage):

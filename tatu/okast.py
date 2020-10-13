@@ -34,10 +34,6 @@ from aiuna.content.data import Data
 
 class OkaSt(Storage):
     """se data já existir, não tenta criar post!"""
-
-    def _fetch_at_(self, position):
-        raise NotImplementedError
-
     # TODO should okast point to a real url by default?
     def __init__(self, token, alias=None, blocking=False, storage_info=None, url="http://localhost:5000"):
         self.headers = {'Authorization': 'Bearer ' + token}
@@ -80,7 +76,7 @@ class OkaSt(Storage):
     def _unlock_(self, data):
         raise NotImplemented
 
-    def fetch_at(self, position):
+    def _fetch_at_(self, position):
         raise Exception("OkaSt storage cannot fetch at a given position for now.")  # TODO add route
 
     def _size_(self):
@@ -89,3 +85,8 @@ class OkaSt(Storage):
     def _open(self):
         pass
 
+    def _last_synced_(self, storage, only_id=True):
+        raise Exception("OkaSt storage cannot know about syncing for now.")  # TODO add route
+
+    def _mark_synced_(self, synced, storage):
+        raise Exception("OkaSt storage cannot record about syncing for now.")  # TODO add route
