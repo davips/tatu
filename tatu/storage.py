@@ -1,7 +1,7 @@
 import threading
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from functools import reduce
+from functools import reduce, cached_property
 from multiprocessing import JoinableQueue, Queue
 from queue import Empty
 from typing import Optional
@@ -227,6 +227,43 @@ class Storage(ABC):
 
     def unlock(self, data):
         self.queue.put({"unlock": data})
+    #
+    # @abstractmethod
+    # def _first_(self):
+    #     pass
+    #
+    # @abstractmethod
+    # def _last_(self):
+    #     pass
+    #
+    # @cached_property
+    # def first(self):
+    #     """Return the first ever inserted Data object."""
+    #     return self.first()
+    #
+    # @cached_property
+    # def last(self):
+    #     """Return the last inserted Data object."""
+    #     return self.first()
+    #
+    # @abstractmethod
+    # def _size_(self):
+    #     pass
+    #
+    # @cached_property
+    # def size(self):
+    #     """Return how many Data objects have been inserted."""
+    #     return self.first()
+    #
+    # def sync(self, storage):
+    #     """Sync, sending Data objects from this storage to the provided one.
+    #
+    #     Perform a binary search with fetch queries to find the last already inserted Data object."""
+    #     d = self.first
+    #     while storage.fetch(d):
+    #         pass
+
+
 
 
 class UnlockedEntryException(Exception):
