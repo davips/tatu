@@ -15,7 +15,7 @@ class OkaSt(Storage):
     """se data já existir, não tenta criar post!"""
 
     def _fetch_children_(self, data: Data) -> List[AbsData]:
-        raise Exception("not ready")
+        raise Exception("not implemented")
 
     def _open(self):
         pass
