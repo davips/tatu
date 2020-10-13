@@ -154,6 +154,7 @@ class Storage(ABC):
             # how to process inner data, it only knows how to apply a step to the outer data as a whole.
         # insert from last to first due to foreign key constraint on inner->data.id
         for job in reversed(lst):
+            print("JJJJJJJJJJJJJJJJJJJJJ", job["store"].id, job["store"].inner and job["store"].inner.id, 888888888888)
             if self.blocking:
                 self._store_(job["store"], check_dup)
             else:

@@ -59,12 +59,17 @@ class SQL(Storage, ABC):
         self.store_dump(dic)
 
         # Insert Data object.
-        if not locked and check_dup:
+        if not locked:
             # ensure UNIQUE constraint (just in case something changed in the meantime since select*)
-            sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
+            if check_dup:
+                sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
+            else:
+                sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
+            data_args = [uuid.id, data.inner and data.inner.id, data.matrix_names_str, data.ids_str, data.history_str]
         else:
-            sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
-        data_args = [uuid.id, data.inner and data.inner.id, data.matrix_names_str, data.ids_str, data.history_str]
+            sql = f"update data set inn=?, names=?, matrices=?, history=?, t={self._now_function()} where id=?"
+            data_args = [data.inner and data.inner.id, data.matrix_names_str, data.ids_str, data.history_str, uuid.id]
+
         # from sqlite3 import IntegrityError as IntegrityErrorSQLite
         # from pymysql import IntegrityError as IntegrityErrorMySQL
         # try:
@@ -81,12 +86,16 @@ class SQL(Storage, ABC):
         # else:
         print(f": Data inserted", uuid)
 
+    def _fetch_core_(self, data, result, lock) -> Optional[Picklable]:
+        pass
+
     def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
         # Fetch data info.
         did = data if isinstance(data, str) else data.id
         self.query(f"select * from data where id=?", [did])
         result = self.get_one()
 
+        # Fetch data info.
         if result is None:
             if lock:
                 self.lock(did)
@@ -192,10 +201,11 @@ class SQL(Storage, ABC):
                 names VARCHAR(255) NOT NULL,
                 matrices VARCHAR(2048), 
                 history TEXT,
-                t TIMESTAMP, 
-                FOREIGN KEY (inn) REFERENCES data(id)
+                t TIMESTAMP 
             )"""
         )
+        # FOREIGN KEY (inn) REFERENCES data(id)  <- REMINDER problems with locking an outer data
+
         self.query(
             f"""
             create table if not exists dump (
@@ -248,14 +258,14 @@ class SQL(Storage, ABC):
         from sqlite3 import IntegrityError as IntegrityErrorSQLite
         from pymysql import IntegrityError as IntegrityErrorMySQL
 
-        try:
+        try:  # REMINDER that exception would be on the way of mysql lock() due to inner 'inn' field FK constraint
             self.query(sql, args)
         except IntegrityErrorSQLite as e:
-            # print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
-            pass
+            print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+            exit()
         except IntegrityErrorMySQL as e:
-            # print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
-            pass
+            print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+            exit()
         else:
             print(f"Now locked for {did}")
 
