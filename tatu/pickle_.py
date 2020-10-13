@@ -151,6 +151,12 @@ class Pickle(Storage):
     def _open(self):
         pass
 
+    def fetch_at(self, position):
+        raise Exception("Pickle storage cannot fetch at a given position for now.")  # TODO order by file timestamp
+
+    def _size_(self):
+        raise Exception("Pickle storage cannot know its size for now.")  # TODO count files in folder
+
 
 # from tatu.sql.sqlite import SQLite
 # PickleServer().store(File("iris.arff").data)

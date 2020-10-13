@@ -322,6 +322,20 @@ class SQL(Storage, ABC):
             sql = sql.replace("insert or ignore", "insert ignore")
         self.cursor.executemany(sql, list_of_tuples)
 
+    def fetch_at(self, position):
+        self.query("select * from data ORDER BY n LIMIT ?,1", [position])
+        result = self.get_one()
+        if result is None:
+            return None
+        return self._fetch_core_(result["id"], result, lock=False)
+
+    def _size_(self):
+        self.query("select count(1) as n from data")
+        rone = self.get_one()
+        if rone is None:
+            return 0
+        return rone["n"]
+
     # FOREIGN KEY (attr) REFERENCES attr(aid)
     # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
     # self.query(f'CREATE INDEX nam1 ON dataset (attr)')

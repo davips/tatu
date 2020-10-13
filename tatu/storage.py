@@ -228,43 +228,40 @@ class Storage(ABC):
 
     def unlock(self, data):
         self.queue.put({"unlock": data})
-    #
-    # @abstractmethod
-    # def _first_(self):
-    #     pass
-    #
-    # @abstractmethod
-    # def _last_(self):
-    #     pass
-    #
-    # @cached_property
-    # def first(self):
-    #     """Return the first ever inserted Data object."""
-    #     return self.first()
-    #
-    # @cached_property
-    # def last(self):
-    #     """Return the last inserted Data object."""
-    #     return self.first()
-    #
-    # @abstractmethod
-    # def _size_(self):
-    #     pass
-    #
-    # @cached_property
-    # def size(self):
-    #     """Return how many Data objects have been inserted."""
-    #     return self.first()
-    #
-    # def sync(self, storage):
-    #     """Sync, sending Data objects from this storage to the provided one.
-    #
-    #     Perform a binary search with fetch queries to find the last already inserted Data object."""
-    #     d = self.first
-    #     while storage.fetch(d):
-    #         pass
 
+    @abstractmethod
+    def fetch_at(self, position):
+        """Return the position-th Data object by time of insertion.
 
+        Starts at 0."""
+        pass
+
+    @abstractmethod
+    def _size_(self):
+        pass
+
+    @cached_property
+    def size(self):
+        """Return how many Data objects are stored."""
+        return self._size_()
+
+    def sync(self, storage):
+        """Sync, sending Data objects from this storage to the provided one.
+
+        Perform a binary search with fetch queries to find the last already inserted Data object."""
+        pos = 0
+        delta = self.size // 2
+        miss_pos = self.size - 1
+        while delta > 0 and pos > 0:
+            d = self.fetch_at(pos)
+            if storage.fetch(d):
+                pos += delta
+            else:
+                miss_pos = pos
+                pos -= delta
+            delta //= 2
+        for i in range(miss_pos, self.size):
+            storage.store(self.fetch_at(i))
 
 
 class UnlockedEntryException(Exception):

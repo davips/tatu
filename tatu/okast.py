@@ -50,3 +50,13 @@ class OkaSt(Storage):
 
     def _unlock_(self, data):
         raise NotImplemented
+
+    def fetch_at(self, position):
+        raise Exception("OkaSt storage cannot fetch at a given position for now.")  # TODO add route
+
+    def _size_(self):
+        raise Exception("OkaSt storage cannot know its size for now.")  # TODO add route
+
+    def _open(self):
+        pass
+
