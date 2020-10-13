@@ -81,7 +81,7 @@ class SQL(Storage, ABC):
         # else:
         print(f": Data inserted", uuid)
 
-    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Picklable]:
+    def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
         # Fetch data info.
         did = data if isinstance(data, str) else data.id
         self.query(f"select * from data where id=?", [did])

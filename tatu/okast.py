@@ -34,7 +34,7 @@ class OkaSt(Storage):
         }
         r = requests.post(self.url + "/api/tatu", files=files, headers=self.headers)
 
-    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Data]:
+    def _fetch_(self, data: Data, lock=False) -> Optional[Data]:
         did = data if isinstance(data, str) else data.id
         response = requests.get(self.url + f"/api/tatu?uuid={did}", headers=self.headers)
         content = response.content

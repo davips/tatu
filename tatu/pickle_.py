@@ -30,7 +30,7 @@ class Pickle(Storage):
             raise MissingEntryException("Does not exist:", data.id)
         os.remove(locked)
 
-    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Picklable]:
+    def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 

@@ -73,7 +73,7 @@ class Storage(ABC):
                     elif "store" in job:
                         self._store_(job["store"], job["check_dup"])
                     elif "fetch" in job:
-                        ret = self._fetch_picklable_(job["fetch"], job["lock"])
+                        ret = self._fetch_(job["fetch"], job["lock"])
                         self.outqueue.put(ret)
                         self.outqueue.join()
                     else:
@@ -187,7 +187,7 @@ class Storage(ABC):
         lst = []
         while data is not None:
             if self.blocking:
-                output = self._fetch_picklable_(data, lock)
+                output = self._fetch_(data, lock)
             else:
                 self.queue.put({"fetch": data, "lock": lock})
 
@@ -214,33 +214,11 @@ class Storage(ABC):
         return reduce(lambda inner, outer: outer.replace([], inner=inner), reversed(lst))
 
     @abstractmethod
-    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Data]:
+    def _fetch_(self, data: Data, lock=False) -> Optional[Data]:
         pass
 
     @abstractmethod
     def fetch_matrix(self, _id):
-        pass
-
-    @abstractmethod
-    def list_by_name(self, substring, only_historyless=True):
-        """Convenience method to retrieve a list of currently stored Data
-        objects by name, ordered cronologically by insertion.
-
-        They are PhantomData objects, i.e. empty ones.
-
-        Parameters
-        ----------
-        substring
-            part of the name to look for
-        only_historyless
-            When True, return only fresh datasets, i.e. Data objects never
-            transformed before.
-
-        Returns
-        -------
-        List of empty Data objects (PhantomData), i.e. without matrices.
-
-        """
         pass
 
     @abstractmethod
@@ -249,42 +227,6 @@ class Storage(ABC):
 
     def unlock(self, data):
         self.queue.put({"unlock": data})
-
-    def visual_history(self, id_, folder=None):
-        """List with all steps/Data objects before the current one. The current avatar is also generated."""
-        uuid = UUID()
-        data = None
-        lastuuid = UUID(id_) if isinstance(id_, str) else id_
-        firstdata = self.fetch(lastuuid)
-        if firstdata is None:
-            print(f"Data {id_} not found!")
-            exit()
-        # TODO: solve this check in aiuna
-        if firstdata.history is None:
-            firstdata.history = []
-        history = (list(firstdata.history) == 0) or firstdata.history
-        if folder:
-            lastuuid.generate_avatar(f"{folder}/{f'{id_}.jpg'}")
-        lst = []
-        for step in history:
-            if isinstance(step, Step):
-                name = step.name
-                transformeruuid = step.uuid
-            else:
-                name = step["name"]
-                transformeruuid = step["uuid"]
-            dic = {
-                "label": uuid.id, "name": name, "help": str(step), "stored": data is not None
-            }
-            if folder:
-                filename = f"{uuid}.jpg"
-                dic["avatar"] = filename
-                uuid.generate_avatar(f"{folder}/{filename}")
-            lst.append(dic)
-            uuid = uuid * transformeruuid
-            data = self.fetch(uuid)
-
-        return lst
 
 
 class UnlockedEntryException(Exception):

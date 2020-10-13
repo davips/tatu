@@ -8,7 +8,7 @@ class Amnesia(Storage):
     def __init__(self):
         super().__init__(blocking=True, timeout=None)
 
-    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Data]:
+    def _fetch_(self, data: Data, lock=False) -> Optional[Data]:
         return None
 
     def _delete_(self, data: Data, check_missing=True):
