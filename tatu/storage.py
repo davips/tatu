@@ -370,7 +370,7 @@ class Storage(withIdentification, ABC):
         ret = self.outqueue.get()
         if isinstance(ret, Exception):
             self.outqueue.task_done()
-            exit()
+            raise ret
         self.outqueue.task_done()
         return ret
 

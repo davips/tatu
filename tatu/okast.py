@@ -26,6 +26,7 @@ from typing import Optional
 import requests
 
 from cruipto.uuid import UUID
+from tatu.sql.mysql import MySQL
 from tatu.storage import Storage
 from aiuna.compression import pack, unpack
 
@@ -84,7 +85,12 @@ class OkaSt(Storage):
         raise NotImplementedError
 
     def _hasdata_(self, id):
-        raise NotImplementedError
+        response = requests.get(self.url + f"/api/sync/{id}?dryrun=true", headers=self.headers)
+        content = response.text
+        print(response.text)
+        if "errors" in content:
+            raise Exception("Invazxczvzxvxzlid token", content, self.url + f"/api/sync/{id}")
+        return content
 
     def _hascontent_(self, id):
         raise NotImplementedError
@@ -93,10 +99,27 @@ class OkaSt(Storage):
         raise NotImplementedError
 
     def _putdata_(self, **row):
+        # tem que criar post
+        # vincular pra só enviar content se data der certo
+        # /sync/hj354jg43kj4g34?inn=hj354jg43kj4g34&names=str&fields=str&history=str
         raise NotImplementedError
 
     def _putcontent_(self, id, value):
+        # tem que criar post
+        # /sync/hj354jg43kj4g34?value=b'21763267f36f3d'
         raise NotImplementedError
 
     def _putstep_(self, id, name, path, config, dump=None):
         raise NotImplementedError
+
+
+def test():
+    url = "http://localhost:5000"
+    oka = OkaSt(threaded=False, token="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE2MDI2ODkzOTUsIm5iZiI6MTYwMjY4OTM5NSwianRpIjoiZDFmMTFlM2YtM2FmZi00Y2EwLWExMjAtMGYwMGZjNzY5NGYzIiwiaWRlbnRpdHkiOiJkYXZpcHMiLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.O31GaVLaGoVWoI_Muo0bCku5YJMBAsjJQBITyL8pdiY", url=url)
+    # b = MySQL(db="tatu:kururu@localhost/tatu").hasdata("2RPtuDLKutP81qX4TaPhu6C")
+    from tatu.sql.sqlite import SQLite
+    b = oka.hasdata("37sjwjtmUgUY3AyRyhlr0xS")
+    print(f"{b}", SQLite().hasdata("37sjwjtmUgUY3AyRyhlr0xS"))
+
+
+test()
