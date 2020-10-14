@@ -30,7 +30,7 @@ from tatu.sql.abc.sql import SQL
 
 
 class MySQL(SQL):
-    def __init__(self, db="user:pass@ip/db", blocking=False, storage_info=None, debug=True, read_only=False):
+    def __init__(self, db="user:pass@ip/db", threaded=True, storage_info=None, debug=True, read_only=False):
         server = db.split("/")[0]
         db = db.split("/")[1]
         self.info = server + ", " + db
@@ -45,13 +45,13 @@ class MySQL(SQL):
             raise Exception("'-' not allowed in db name!")
         self.hostname = socket.gethostname()
 
-        self._uuid = UUID(json.dumps([db, blocking], sort_keys=True, ensure_ascii=False).encode())
-        super().__init__(blocking, timeout=8)
+        self._uuid = UUID(db.encode())
+        super().__init__(threaded, timeout=8)
 
     def _uuid_(self):
         return self._uuid
 
-    def _open(self):
+    def _open_(self):
         """
         Each reconnection has a cost of approximately 150ms in ADSL (ping=30ms).
         :return:

@@ -40,13 +40,13 @@ from tatu.storage import (
 
 
 class Pickle(Storage):
-    def __init__(self, blocking=False, db="tatu-sqlite", compress=True):
+    def __init__(self, threaded=True, db="tatu-sqlite", compress=True):
         self.db = db
         self.compress = compress
         if not Path(db).exists():
             os.mkdir(db)
-        self._uuid = UUID(json.dumps([db, blocking, compress], sort_keys=True, ensure_ascii=False).encode())
-        super().__init__(blocking, timeout=1)
+        self._uuid = UUID(json.dumps([db, compress], sort_keys=True, ensure_ascii=False).encode())
+        super().__init__(threaded, timeout=1)
 
     def _uuid_(self):
         return self._uuid
@@ -163,7 +163,7 @@ class Pickle(Storage):
         print("W: Unlocking...", filename)
         os.remove(filename)
 
-    def _open(self):
+    def _open_(self):
         pass
 
     def fetch_field(self, _id):

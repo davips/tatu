@@ -332,26 +332,26 @@ class SQL(Storage, ABC):
 
         msg = self._interpolate(sql, args)
         if self.debug:
-            print(msg)
+            print(self.name + ":\t>>>>> " + msg)
         if isinstance(self, MySQL):
             sql = sql.replace("?", "%s")
             sql = sql.replace("insert or ignore", "insert ignore")
             # self.connection.ping(reconnect=True)
 
-        try:
-            cursor.execute(sql, args)
-        except Exception as ex:
-            # From a StackOverflow answer...
-            import sys
-            import traceback
-
-            msg = self.info + "\n" + msg
-            # Gather the information from the original exception:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            # Format the original exception for a nice printout:
-            traceback_string = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-            # Re-raise a new exception of the same class as the original one
-            raise type(ex)("%s\norig. trac.:\n%s\n" % (msg, traceback_string))
+        # try:
+        cursor.execute(sql, args)
+        # except Exception as ex:
+        #     # From a StackOverflow answer...
+        #     import sys
+        #     import traceback
+        #
+        #     msg = self.info + "\n" + msg
+        #     # Gather the information from the original exception:
+        #     exc_type, exc_value, exc_traceback = sys.exc_info()
+        #     # Format the original exception for a nice printout:
+        #     traceback_string = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        #     # Re-raise a new exception of the same class as the original one
+        #     raise type(ex)("%s\norig. trac.:\n%s\n" % (msg, traceback_string))
 
     def __del__(self):
         try:
@@ -374,10 +374,7 @@ class SQL(Storage, ABC):
             sql = sql.replace("insert or ignore", "insert ignore")
         self.cursor.executemany(sql, list_of_tuples)
 
-    def _sync(self, storage_func):
-        import dill
-        storage = dill.loads(storage_func)()  # REMINDER: Destination Storage is being created in this thread.
-        storage._open()
+    def _update_remote_(self, storage):
         stid = storage.id
 
         # List all Data uuids since last synced one, but insert only the ones not already there.
@@ -388,49 +385,44 @@ class SQL(Storage, ABC):
         for row0 in self.cursor:
             did = row0["id"]
             if not storage.hasdata(did):
-
-                # Send data.
+                # Get rest of data info.
                 self.query(f"select * from data where id=?", [did], cursor2)
                 row = dict(cursor2.fetchone())
-                del row["n"]
-                del row["t"]
-                storage.putdata(**row)
 
                 # Send fields
                 for fieldid in row["fields"].split(",") + row["history"].split(","):
-                    print(f"{fieldid}")
                     if not storage.hascontent(fieldid):
                         self.query("select id, value from content where id=?", [fieldid], cursor2)
                         storage.putcontent(**cursor2.fetchone())
+
+                # Send data.
+                del row["n"]
+                del row["t"]
+                storage.putdata(**row)
 
                 # Update table sync as soon as possible, to behave well in case of interruption of a long list of inserts.
                 # TODO a single query to insert / update
                 self.query(f"delete from sync where storage=?", [stid], cursor2)
                 self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
 
-    def sync(self, storage_func):
-        """Sync, sending Data objects from this storage to the provided one."""
-        import dill
-        self.queue.put({"sync": dill.dumps(storage_func)})
-
-    def hasdata(self, id):
+    def _hasdata_(self, id):
         self.query(f"select 1 from data where id=?", [id])
         return self.get_one() is not None
 
-    def hascontent(self, id):
+    def _hascontent_(self, id):
         self.query(f"select 1 from content where id=?", [id])
         return self.get_one() is not None
 
-    def hasstep(self, id):
+    def _hasstep_(self, id):
         self.query(f"select 1 from step where id=?", [id])
         return self.get_one() is not None
 
-    def putdata(self, **row):
+    def _putdata_(self, **row):
         qmarks = ",".join(["?"] * len(row))
         self.query(f"INSERT INTO data ({','.join(row.keys())}, t) VALUES ({qmarks}, {self._now_function()})", list(row.values()))
 
-    def putcontent(self, id, value):
+    def _putcontent_(self, id, value):
         self.query(f"INSERT INTO content VALUES (NULL, ?, ?)", [id, value])
 
-    def putstep(self, id, name, path, config, dump=None):
+    def _putstep_(self, id, name, path, config, dump=None):
         self.query(f"INSERT INTO step VALUES (NULL, ?, ?, ?, ?, ?)", [id, name, path, config, dump])

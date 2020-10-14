@@ -28,20 +28,20 @@ from tatu.sql.abc.sql import SQL
 
 
 class SQLite(SQL):
-    def __init__(self, db="tatu-sqlite", blocking=False, storage_info=None, debug=not False, read_only=False):
+    def __init__(self, db="tatu-sqlite", threaded=True, storage_info=None, debug=not False, read_only=False):
         self.info = db
         self.read_only = read_only
         self.hostname = socket.gethostname()
         self.database = db + ".db"
         self.storage_info = storage_info
         self.debug = debug
-        self._uuid = UUID(json.dumps([db, blocking], sort_keys=True, ensure_ascii=False).encode())
-        super().__init__(blocking, timeout=2)
+        self._uuid = UUID(db.encode())
+        super().__init__(threaded, timeout=2)
 
     def _uuid_(self):
         return self._uuid
 
-    def _open(self):
+    def _open_(self):
         # isolation_level=None -> SQLite autocommiting
         # isolation_level='DEFERRED' -> SQLite transactioning
         self.connection = sqlite3.connect(self.database, isolation_level=None)

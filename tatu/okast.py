@@ -36,12 +36,12 @@ class OkaSt(Storage):
     """se data já existir, não tenta criar post!"""
 
     # TODO should okast point to a real url by default?
-    def __init__(self, token, alias=None, blocking=False, storage_info=None, url="http://localhost:5000"):
+    def __init__(self, token, alias=None, threaded=True, storage_info=None, url="http://localhost:5000"):
         self.headers = {'Authorization': 'Bearer ' + token}
         self.storage_info = storage_info
         self.url = url
         self.alias = alias
-        super().__init__(blocking, timeout=6)  # TODO: check if threading will destroy oka
+        super().__init__(threaded, timeout=6)  # TODO: check if threading will destroy oka
 
     def _uuid_(self):
         # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
@@ -74,8 +74,29 @@ class OkaSt(Storage):
     def _unlock_(self, data):
         raise NotImplemented
 
-    def _open(self):
+    def _open_(self):
         pass
 
     def fetch_field(self, _id):
+        raise NotImplementedError
+
+    def _update_remote_(self, storage_func):
+        raise NotImplementedError
+
+    def _hasdata_(self, id):
+        raise NotImplementedError
+
+    def _hascontent_(self, id):
+        raise NotImplementedError
+
+    def _hasstep_(self, id):
+        raise NotImplementedError
+
+    def _putdata_(self, **row):
+        raise NotImplementedError
+
+    def _putcontent_(self, id, value):
+        raise NotImplementedError
+
+    def _putstep_(self, id, name, path, config, dump=None):
         raise NotImplementedError

@@ -7,7 +7,7 @@ from tatu.storage import Storage
 
 class Amnesia(Storage):
     def __init__(self):
-        super().__init__(blocking=True, timeout=None)
+        super().__init__(threaded=False, timeout=None)
 
     def _uuid_(self):
         return UUID(b"Amnesia")
