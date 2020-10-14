@@ -102,18 +102,6 @@ class Pickle(Storage):
 
         self._dump(data, filename)
 
-    def list_by_name(self, substring, only_original=True):
-        datas = []
-        path = self.db + f"/*{substring}*-*.dump"
-        for file in sorted(glob(path), key=os.path.getmtime):
-            data = self._load(file)
-            if only_original and len(data.history) == 1:
-                datas.append(data)  # Data is now fully lazy, so nothing will be retrieved.
-        return datas
-
-    def fetch_matrix(self, id):
-        raise NotImplementedError
-
     def _filename(self, prefix, data):
         zip = "compressed" if self.compress else ""
         # Not very efficient.  TODO: memoize extraction of fields from JSON?
@@ -178,23 +166,18 @@ class Pickle(Storage):
     def _open(self):
         pass
 
-    def _fetch_at_(self, position):
-        raise Exception("Pickle storage cannot fetch at a given position for now.")  # TODO order by file timestamp
+    def fetch_field(self, _id):
+        raise NotImplementedError
 
-    def _size_(self):
-        raise Exception("Pickle storage cannot know its size for now.")  # TODO count files in folder
+    # def list_by_name(self, substring, only_original=True):
+    #     datas = []
+    #     path = self.db + f"/*{substring}*-*.dump"
+    #     for file in sorted(glob(path), key=os.path.getmtime):
+    #         data = self._load(file)
+    #         if only_original and len(data.history) == 1:
+    #             datas.append(data)  # Data is now fully lazy, so nothing will be retrieved.
+    #     return datas
 
-    def _last_synced_(self, storage, only_id=True):
-        return None
-
-    def _mark_synced_(self, synced, storage):
-        pass
-
-
-# from tatu.sql.sqlite import SQLite
-# PickleServer().store(File("iris.arff").data)
-# print(PickleServer().visual_history(File("iris.arff").data.id))
-# exit()
 
 def sqlite_Test():
     from tatu.sql.sqlite import SQLite
@@ -203,6 +186,11 @@ def sqlite_Test():
     SQLite().delete(data, check_missing=False)
     SQLite().store(data)
     print(SQLite().visual_history(File("iris.arff").data.id))
+
+# from tatu.sql.sqlite import SQLite
+# PickleServer().store(File("iris.arff").data)
+# print(PickleServer().visual_history(File("iris.arff").data.id))
+# exit()
 
 # from tatu.sql.mysql import MySQL
 # MySQL(db="tatu:xxxxx@localhost/tatu").store(File("iris.arff").data)

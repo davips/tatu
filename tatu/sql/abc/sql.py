@@ -19,7 +19,6 @@
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import json
 import warnings
 from abc import abstractmethod, ABC
 from typing import Optional
@@ -157,7 +156,7 @@ class SQL(Storage, ABC):
         uuids.update(dict(zip(names, map(UUID, mids))))
         return Picklable(uuid=UUID(did), uuids=uuids, history=serialized_hist, storage_info=self.storage_info, inner=inner, **matrices)
 
-    def fetch_matrix(self, id):
+    def fetch_field(self, id):
         # TODO: quando faz select em algo que não existe, fica esperando
         #  infinitamente algum lock liberar
         self.query(f"select value from dump where id=?", [id])
@@ -217,7 +216,7 @@ class SQL(Storage, ABC):
                 id char(23) NOT NULL UNIQUE,
                 inn char(23),
                 names VARCHAR(255) NOT NULL,
-                matrices VARCHAR(2048), 
+                matrices TEXT, 
                 history TEXT,
                 t TIMESTAMP 
             )"""
@@ -238,7 +237,7 @@ class SQL(Storage, ABC):
             f"""
             create table if not exists sync (
                 n integer NOT NULL primary key {self._auto_incr()},
-                storage char(23) NOT NULL,
+                storage char(23) NOT NULL unique,
                 last char(23) NOT NULL,
                 t TIMESTAMP, 
                 unique (storage, last)
@@ -299,10 +298,12 @@ class SQL(Storage, ABC):
         else:
             print(f"Now locked for {did}")
 
-    def query(self, sql, args=None):
+    def query(self, sql, args=None, cursor=None):
+        if cursor is None:
+            cursor = self.cursor
         if self.read_only and not sql.startswith("select "):
             print("========================================\n", "Attempt to write onto read-only storage!", sql)
-            self.cursor.execute("select 1")
+            cursor.execute("select 1")
             return
         if args is None:
             args = []
@@ -317,7 +318,7 @@ class SQL(Storage, ABC):
             # self.connection.ping(reconnect=True)
 
         try:
-            self.cursor.execute(sql, args)
+            cursor.execute(sql, args)
         except Exception as ex:
             # From a StackOverflow answer...
             import sys
@@ -352,41 +353,52 @@ class SQL(Storage, ABC):
             sql = sql.replace("insert or ignore", "insert ignore")
         self.cursor.executemany(sql, list_of_tuples)
 
-    def _fetch_at_(self, position):
-        self.query(f"select * from data ORDER BY n LIMIT {position},1")
-        result = self.get_one()
-        if result is None:
-            return None
-        return self._fetch_core_(result["id"], result, lock=False)
+    def _sync(self, storage_func):
+        print("sssssyyyyyyyyyyyyy")
+        import dill
+        storage = dill.loads(storage_func)()  # REMINDER: Destination Storage is being created in this thread.
+        storage._open()
+        stid = storage.id
+        sqllast = f"select last from sync where storage='{stid}' order by n desc limit 1"
+        sql = f"select * from data where n > IFNULL((select n from data where id in ({sqllast})), -1) order by n"
+        self.query(sql)
+        cursor2 = self.connection.cursor()
+        for row in self.cursor:
+            row = dict(row)
+            del row["n"]
+            del row["t"]
+            storage.insert_data(**row)
+            for duid in row["matrices"].split(",") + row["history"].split(","):
+                print(f"{duid}")
+                self.query("select id, value from dump where id=?", [duid], cursor2)
+                storage.store_field(**cursor2.fetchone())
+            did = row["id"]
+            # Update sync as soon as possible, to behave well in case of interrupotion of a long list of inserts.
+            # TODO a single query to insert / update
+            self.query(f"delete from sync where storage=?", [stid], cursor2)
+            self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
 
-    def _size_(self):
-        self.query("select count(1) as n from data")
-        rone = self.get_one()
-        if rone is None:
-            return 0
-        return rone["n"]
+    def sync(self, storage_func):
+        """Sync, sending Data objects from this storage to the provided one."""
+        import dill
+        self.queue.put({"sync": dill.dumps(storage_func)})
 
-    def _last_synced_(self, storage, only_id=True):
-        if not only_id:
-            raise NotImplementedError
-        self.query("select last from sync where storage=? order by n desc limit 1", [storage])
-        rone = self.get_one()
-        if rone is None:
-            return None
-        return rone["last"]
+    def insert_data(self, **row):
+        qmarks = ",".join(["?"] * len(row))
+        self.query(f"INSERT INTO data ({','.join(row.keys())}) VALUES ({qmarks})", list(row.values()))
 
-    def _mark_synced_(self, synced, storage):
-        qmarks = ",".join(["?"] * len(synced))
-        self.query(f"delete from sync where storage=? and last in ({qmarks})", [storage] + synced)
-        self.insert_many([[storage, did, {self._now_function()}] for did in synced], "sync")
+    def store_field(self, id, value):
+        self.query(f"select 1 from dump where id=?", [id])
+        if self.get_one() is None:
+            self.query(f"INSERT INTO dump VALUES (NULL, ?, ?)", [id, value])
 
-        # FOREIGN KEY (attr) REFERENCES attr(aid)
-        # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
-        # self.query(f'CREATE INDEX nam1 ON dataset (attr)')
-        # insl timestamp NOT NULL     # unique(dataset, hist),
-        # spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
-        # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
-        # insd=insd, upd={self._now_function()} where did=?
-        #     x = coalesce(values(x), x),
-        #     from res left join data on dout = did
-        #     left join dataset on dataset = dsid where
+# FOREIGN KEY (attr) REFERENCES attr(aid)
+# self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
+# self.query(f'CREATE INDEX nam1 ON dataset (attr)')
+# insl timestamp NOT NULL     # unique(dataset, hist),
+# spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
+# update data set {','.join([f'{k}=?' for k in to_update.keys()])}
+# insd=insd, upd={self._now_function()} where did=?
+#     x = coalesce(values(x), x),
+#     from res left join data on dout = did
+#     left join dataset on dataset = dsid where

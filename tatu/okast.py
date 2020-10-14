@@ -70,23 +70,8 @@ class OkaSt(Storage):
     def _delete_(self, data: Data, check_missing=True):
         raise NotImplemented
 
-    def fetch_matrix(self, id):
-        raise NotImplemented
-
     def _unlock_(self, data):
         raise NotImplemented
 
-    def _fetch_at_(self, position):
-        raise Exception("OkaSt storage cannot fetch at a given position for now.")  # TODO add route
-
-    def _size_(self):
-        raise Exception("OkaSt storage cannot know its size for now.")  # TODO add route
-
     def _open(self):
         pass
-
-    def _last_synced_(self, storage, only_id=True):
-        raise Exception("OkaSt storage cannot know about syncing for now.")  # TODO add route
-
-    def _mark_synced_(self, synced, storage):
-        raise Exception("OkaSt storage cannot record about syncing for now.")  # TODO add route

@@ -47,12 +47,9 @@ class Storage(withIdentification, ABC):
     outqueue = None
     mythread = None
     open = False
-    _target_storage = None
-    __eq__ = object.__eq__  # override withIdentification
-
-    # Time spent hoping the thread will be useful again.
 
     def __init__(self, blocking, timeout):
+        """timeout: Time spent hoping the thread will be useful again."""
         self.blocking = blocking
         if self.blocking:
             if not self.open:
@@ -98,11 +95,7 @@ class Storage(withIdentification, ABC):
                     if "unlock" in job:
                         self.unlock(job["unlock"])
                     elif "sync" in job:
-                        self._sync()
-                    elif "fetch at" in job:
-                        ret = self._fetch_at_(job["fetch at"])
-                        self.outqueue.put(ret)
-                        self.outqueue.join()
+                        self._sync(job["sync"])
                     elif "delete" in job:
                         self._delete_(job["delete"], job["check_missing"])
                     elif "store" in job:
@@ -118,17 +111,12 @@ class Storage(withIdentification, ABC):
                     if threading.main_thread().is_alive():
                         self.outqueue.put(False)
                     raise Exception
-                    break
 
             except Empty:
                 break
 
-    # @abstractmethod
-    # def dump(self,):
-    #     """Dump component"""
-
     @abstractmethod
-    def _open(self):
+    def _open(self):  # REMINDER When blocking=False, _open should be called within the thread
         pass
 
     @abstractmethod
@@ -160,7 +148,7 @@ class Storage(withIdentification, ABC):
 
         Returns
         -------
-        List of inserted Data UUIDs (only meaningful for Data objects with inner)
+        List of inserted Data ids (only meaningful for Data objects with inner)
 
         Exception
         ---------
@@ -187,7 +175,7 @@ class Storage(withIdentification, ABC):
                 self._store_(job["store"], check_dup)
             else:
                 self.queue.put(job)
-        return [job["store"].id for job in lst]
+        return [job["store"].id for job in reversed(lst)]
 
     def fetch(self, data: Data, lock=False, recursive=True) -> AbsData:
         """Fetch data from DB.
@@ -220,12 +208,9 @@ class Storage(withIdentification, ABC):
                 output = self._fetch_(data, lock)
             else:
                 if same_thread:
-                    output = self._fetch_at_(data) if isinstance(data, int) else self._fetch_(data, lock)
+                    output = self._fetch_(data, lock)
                 else:
-                    if isinstance(data, int):
-                        self.queue.put({"fetch at": data, "lock": lock})
-                    else:
-                        self.queue.put({"fetch": data, "lock": lock})
+                    self.queue.put({"fetch": data, "lock": lock})
 
                     # Wait for result.
                     output = self.outqueue.get()
@@ -256,7 +241,7 @@ class Storage(withIdentification, ABC):
         pass
 
     @abstractmethod
-    def fetch_matrix(self, _id):
+    def fetch_field(self, _id):
         pass
 
     @abstractmethod
@@ -265,65 +250,6 @@ class Storage(withIdentification, ABC):
 
     def unlock(self, data):
         self.queue.put({"unlock": data})
-
-    def fetch_at(self, position, recursive=True, same_thread=False):
-        """Return the position-th Data object by time of insertion.
-
-        Starts at 0."""
-        return self.fetch_picklable(position, lock=False, recursive=recursive, same_thread=same_thread)
-
-    @abstractmethod
-    def _fetch_at_(self, position):
-        pass
-
-    @abstractmethod
-    def _size_(self):
-        pass
-
-    @property
-    def size(self):
-        """Return how many Data objects are stored."""
-        return self._size_()
-
-    @abstractmethod
-    def _last_synced_(self, storage, only_id=True):
-        pass
-
-    def last_synced(self, storage, same_thread=False):
-        """Return last synced Data object."""
-        if not same_thread:
-            raise NotImplementedError
-        return self._last_synced_(storage, only_id=False)
-
-    @abstractmethod
-    def _mark_synced_(self, synced, storage):
-        pass
-
-    def mark_synced(self, synced, storage, same_thread=False):
-        """Record Data UUIDs as synced for the given (remote) storage."""
-        if not same_thread:
-            raise NotImplementedError
-        return self._mark_synced_(synced, storage)
-
-    def _sync(self):
-        miss_pos = self.last_synced(self._target_storage, same_thread=True)
-        already_inserted = set()
-        for i in range(miss_pos + 1, self.size):
-            data = self.fetch_at(i, same_thread=True)
-            if data and data.id not in already_inserted:
-                synced = self._target_storage.store(data)
-                self.mark_synced(synced, self._target_storage, same_thread=True)
-                already_inserted.update(synced)
-        self._target_storage = None
-
-    def sync(self, storage):
-        """Sync, sending Data objects from this storage to the provided one.
-
-        Perform a binary search with fetch queries to find the last already inserted Data object."""
-        if self._target_storage:
-            raise Exception("Cannot sync, another syncing was started!")
-        self._target_storage = storage
-        self.queue.put({"sync": None})
 
     def _name_(self):
         return self.__class__.__name__
