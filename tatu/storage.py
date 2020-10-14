@@ -291,6 +291,8 @@ class Storage(withIdentification, ABC):
     def update_remote(self, storage):
         """Sync, sending Data objects from this storage to the provided one."""
         if self.threaded:
+            if storage.isopen:
+                raise Exception("A threaded storage cannot update a remote that was already opened before.")
             import dill
             self.queue.put({"update_remote": dill.dumps(storage)})
         else:
