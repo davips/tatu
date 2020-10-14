@@ -63,7 +63,7 @@ class SQL(Storage, ABC):
         qmarks = ",".join(["?"] * len(data.uuids))
         print(">>>>>>>>", qmarks)
         print("idslllllllllllll", data.ids_lst)
-        self.query(f"select id from dump where id in ({qmarks})", data.ids_lst)
+        self.query(f"select id from content where id in ({qmarks})", data.ids_lst)
         rall = self.get_all()
         stored_hashes = [row["id"] for row in rall]
 
@@ -87,7 +87,7 @@ class SQL(Storage, ABC):
                 sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, {self._now_function()})"
             data_args = [uuid.id, data.inner and data.inner.id, data.matrix_names_str, data.ids_str, data.history_str]
         else:
-            sql = f"update data set inn=?, names=?, matrices=?, history=?, t={self._now_function()} where id=?"
+            sql = f"update data set inn=?, names=?, fields=?, history=?, t={self._now_function()} where id=?"
             data_args = [data.inner and data.inner.id, data.matrix_names_str, data.ids_str, data.history_str, uuid.id]
 
         # from sqlite3 import IntegrityError as IntegrityErrorSQLite
@@ -129,7 +129,7 @@ class SQL(Storage, ABC):
             raise LockedEntryException(did)
 
         names = result["names"].split(",")
-        mids = result["matrices"].split(",")
+        mids = result["fields"].split(",")
         hids = result["history"].split(",")
         inner = result["inn"]
 
@@ -159,7 +159,7 @@ class SQL(Storage, ABC):
     def fetch_field(self, id):
         # TODO: quando faz select em algo que não existe, fica esperando
         #  infinitamente algum lock liberar
-        self.query(f"select value from dump where id=?", [id])
+        self.query(f"select value from content where id=?", [id])
         rone = self.get_one()
         if rone is None:
             raise Exception("Matrix not found!", id)
@@ -169,7 +169,7 @@ class SQL(Storage, ABC):
         if len(duids) == 0:
             return [] if aslist else dict()
         qmarks = ",".join(["?"] * len(duids))
-        sql = f"select id,value from dump where id in ({qmarks}) order by n"
+        sql = f"select id,value from content where id in ({qmarks}) order by n"
         self.query(sql, duids)
         rall = self.get_all()
         id_value = {row["id"]: unpack(row["value"]) for row in rall}
@@ -216,7 +216,7 @@ class SQL(Storage, ABC):
                 id char(23) NOT NULL UNIQUE,
                 inn char(23),
                 names VARCHAR(255) NOT NULL,
-                matrices TEXT, 
+                fields TEXT, 
                 history TEXT,
                 t TIMESTAMP 
             )"""
@@ -225,10 +225,22 @@ class SQL(Storage, ABC):
 
         self.query(
             f"""
-            create table if not exists dump (
+            create table if not exists content (
                 n integer NOT NULL primary key {self._auto_incr()},
                 id char(23) NOT NULL UNIQUE,
                 value LONGBLOB NOT NULL
+            )"""
+        )
+
+        self.query(
+            f"""
+            create table if not exists step (
+                n integer NOT NULL primary key {self._auto_incr()},
+                id char(23) NOT NULL UNIQUE,
+                name varchar(60),
+                path varchar(250),
+                config text,
+                dump LONGBLOB
             )"""
         )
 
@@ -239,10 +251,19 @@ class SQL(Storage, ABC):
                 n integer NOT NULL primary key {self._auto_incr()},
                 storage char(23) NOT NULL unique,
                 last char(23) NOT NULL,
-                t TIMESTAMP, 
-                unique (storage, last)
+                t TIMESTAMP
             )"""
         )
+        # FOREIGN KEY (attr) REFERENCES attr(aid)
+        # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
+        # self.query(f'CREATE INDEX nam1 ON dataset (attr)')
+        # insl timestamp NOT NULL     # unique(dataset, hist),
+        # spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
+        # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
+        # insd=insd, upd={self._now_function()} where did=?
+        #     x = coalesce(values(x), x),
+        #     from res left join data on dout = did
+        #     left join dataset on dataset = dsid where
 
     def get_one(self) -> Optional[dict]:
         """
@@ -275,7 +296,7 @@ class SQL(Storage, ABC):
         lst = [(duid, memoryview(dump) if isinstance(self, SQLite) else dump) for duid, dump in lst.items()]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self.insert_many(lst, "dump")
+            self.insert_many(lst, "content")
 
     def lock(self, data):
         did = data if isinstance(data, str) else data.id
@@ -354,51 +375,62 @@ class SQL(Storage, ABC):
         self.cursor.executemany(sql, list_of_tuples)
 
     def _sync(self, storage_func):
-        print("sssssyyyyyyyyyyyyy")
         import dill
         storage = dill.loads(storage_func)()  # REMINDER: Destination Storage is being created in this thread.
         storage._open()
         stid = storage.id
-        sqllast = f"select last from sync where storage='{stid}' order by n desc limit 1"
-        sql = f"select * from data where n > IFNULL((select n from data where id in ({sqllast})), -1) order by n"
-        self.query(sql)
+
+        # List all Data uuids since last synced one, but insert only the ones not already there.
+        lastid = f"select last from sync where storage='{stid}'"
+        lastn = f"IFNULL((select n from data where id in ({lastid})), -1)"
+        self.query(f"select id from data where n > {lastn} order by n")
         cursor2 = self.connection.cursor()
-        for row in self.cursor:
-            row = dict(row)
-            del row["n"]
-            del row["t"]
-            storage.insert_data(**row)
-            for duid in row["matrices"].split(",") + row["history"].split(","):
-                print(f"{duid}")
-                self.query("select id, value from dump where id=?", [duid], cursor2)
-                storage.store_field(**cursor2.fetchone())
-            did = row["id"]
-            # Update sync as soon as possible, to behave well in case of interrupotion of a long list of inserts.
-            # TODO a single query to insert / update
-            self.query(f"delete from sync where storage=?", [stid], cursor2)
-            self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
+        for row0 in self.cursor:
+            did = row0["id"]
+            if not storage.hasdata(did):
+
+                # Send data.
+                self.query(f"select * from data where id=?", [did], cursor2)
+                row = dict(cursor2.fetchone())
+                del row["n"]
+                del row["t"]
+                storage.putdata(**row)
+
+                # Send fields
+                for fieldid in row["fields"].split(",") + row["history"].split(","):
+                    print(f"{fieldid}")
+                    if not storage.hascontent(fieldid):
+                        self.query("select id, value from content where id=?", [fieldid], cursor2)
+                        storage.putcontent(**cursor2.fetchone())
+
+                # Update table sync as soon as possible, to behave well in case of interruption of a long list of inserts.
+                # TODO a single query to insert / update
+                self.query(f"delete from sync where storage=?", [stid], cursor2)
+                self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
 
     def sync(self, storage_func):
         """Sync, sending Data objects from this storage to the provided one."""
         import dill
         self.queue.put({"sync": dill.dumps(storage_func)})
 
-    def insert_data(self, **row):
+    def hasdata(self, id):
+        self.query(f"select 1 from data where id=?", [id])
+        return self.get_one() is not None
+
+    def hascontent(self, id):
+        self.query(f"select 1 from content where id=?", [id])
+        return self.get_one() is not None
+
+    def hasstep(self, id):
+        self.query(f"select 1 from step where id=?", [id])
+        return self.get_one() is not None
+
+    def putdata(self, **row):
         qmarks = ",".join(["?"] * len(row))
-        self.query(f"INSERT INTO data ({','.join(row.keys())}) VALUES ({qmarks})", list(row.values()))
+        self.query(f"INSERT INTO data ({','.join(row.keys())}, t) VALUES ({qmarks}, {self._now_function()})", list(row.values()))
 
-    def store_field(self, id, value):
-        self.query(f"select 1 from dump where id=?", [id])
-        if self.get_one() is None:
-            self.query(f"INSERT INTO dump VALUES (NULL, ?, ?)", [id, value])
+    def putcontent(self, id, value):
+        self.query(f"INSERT INTO content VALUES (NULL, ?, ?)", [id, value])
 
-# FOREIGN KEY (attr) REFERENCES attr(aid)
-# self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
-# self.query(f'CREATE INDEX nam1 ON dataset (attr)')
-# insl timestamp NOT NULL     # unique(dataset, hist),
-# spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
-# update data set {','.join([f'{k}=?' for k in to_update.keys()])}
-# insd=insd, upd={self._now_function()} where did=?
-#     x = coalesce(values(x), x),
-#     from res left join data on dout = did
-#     left join dataset on dataset = dsid where
+    def putstep(self, id, name, path, config, dump=None):
+        self.query(f"INSERT INTO step VALUES (NULL, ?, ?, ?, ?, ?)", [id, name, path, config, dump])

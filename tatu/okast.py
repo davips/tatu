@@ -34,6 +34,7 @@ from aiuna.content.data import Data
 
 class OkaSt(Storage):
     """se data já existir, não tenta criar post!"""
+
     # TODO should okast point to a real url by default?
     def __init__(self, token, alias=None, blocking=False, storage_info=None, url="http://localhost:5000"):
         self.headers = {'Authorization': 'Bearer ' + token}
@@ -75,3 +76,6 @@ class OkaSt(Storage):
 
     def _open(self):
         pass
+
+    def fetch_field(self, _id):
+        raise NotImplementedError
