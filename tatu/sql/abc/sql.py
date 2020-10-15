@@ -18,7 +18,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import json
 import warnings
 from abc import abstractmethod, ABC
 from typing import Optional, List
@@ -26,10 +26,12 @@ from typing import Optional, List
 from aiuna.compression import unpack, pack
 from aiuna.content.data import Data, Picklable
 from cruipto.uuid import UUID
+from tatu.sql.abc.withsetup import withSetup
 from tatu.storage import Storage, DuplicateEntryException, LockedEntryException, MissingEntryException
+from transf.customjson import CustomJSONEncoder
 
 
-class SQL(Storage, ABC):
+class SQL(Storage, withSetup, ABC):
     from transf.absdata import AbsData
     cursor = None
     storage_info = None
@@ -54,7 +56,7 @@ class SQL(Storage, ABC):
         # The sequence of queries is planned to minimize traffic and CPU load,
         # otherwise it would suffice to just send 'insert or ignore' of dumps.
         uuid = data.uuid
-        parentid = data.parentuuid.id
+        parentid = data.parent_uuid.id
         self.query(f"select t from data where id=?", [uuid.id])
         rone = self.get_one()
 
@@ -78,8 +80,8 @@ class SQL(Storage, ABC):
                 dic[u.id] = data.field_dump(name)
         self.store_dump(dic)
 
-        # Insert history. #TODO jsonify qnd items vierem como dicts
-        dic = {hid: pack(stepstr) for hid, stepstr in data.history.items()}
+        # Insert history.
+        dic = {dic["id"]: json.dumps(dic["desc"], cls=CustomJSONEncoder, sort_keys=True, ensure_ascii=False) for dic in data.history.asdicts}
         self.store_dump(dic)
 
         # Insert Data object.
@@ -210,74 +212,6 @@ class SQL(Storage, ABC):
     def _auto_incr():
         pass
 
-    def _setup(self):
-        print("creating tables...")
-
-        # Data - Up to 102 matrices and 3277 transformations per row
-        # ========================================================
-        # REMINDER 'inner' is a SQL reserved word.
-        # REMINDER d.parent = d.uuid / lastStep.uuid; the field is here just to speed up search of children.
-        # TODO create index on column 'id' (and FKs if needed)
-        # parent=NULL means child of Root
-        self.query(
-            f"""
-            create table if not exists data (
-                n integer NOT NULL primary key {self._auto_incr()},
-                id char(23) NOT NULL UNIQUE,
-                inn char(23),
-                parent char(23) UNIQUE,
-                names VARCHAR(255),
-                fields TEXT, 
-                step char(23),
-                t TIMESTAMP 
-            )"""
-        )
-        # REMINDER não pode ter [FOREIGN KEY (parent) REFERENCES data(id)] pq nem sempre o parent vai pra base
-
-        # FOREIGN KEY (inn) REFERENCES data(id)  <- REMINDER problems with locking an outer data
-
-        self.query(
-            f"""
-            create table if not exists content (
-                n integer NOT NULL primary key {self._auto_incr()},
-                id char(23) NOT NULL UNIQUE,
-                value LONGBLOB NOT NULL
-            )"""
-        )
-
-        self.query(
-            f"""
-            create table if not exists step (
-                n integer NOT NULL primary key {self._auto_incr()},
-                id char(23) NOT NULL UNIQUE,
-                name varchar(60),
-                path varchar(250),
-                config text,
-                dump LONGBLOB
-            )"""
-        )
-
-        # Table to speed up look up for already synced Data objects.
-        self.query(
-            f"""
-            create table if not exists sync (
-                n integer NOT NULL primary key {self._auto_incr()},
-                storage char(23) NOT NULL unique,
-                last char(23) NOT NULL,
-                t TIMESTAMP
-            )"""
-        )
-        # FOREIGN KEY (attr) REFERENCES attr(aid)
-        # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
-        # self.query(f'CREATE INDEX nam1 ON dataset (attr)')
-        # insl timestamp NOT NULL     # unique(dataset, hist),
-        # spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
-        # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
-        # insd=insd, upd={self._now_function()} where did=?
-        #     x = coalesce(values(x), x),
-        #     from res left join data on dout = did
-        #     left join dataset on dataset = dsid where
-
     def get_one(self) -> Optional[dict]:
         """
         Get a single result after a query, no more than that.
@@ -315,7 +249,7 @@ class SQL(Storage, ABC):
         # REMINDER relaxing constraints
         # if isinstance(data, str):
         #     raise Exception("Cannot lock only by data UUID, a Data object is required because the data parent UUID is needed by DBMS constraints.")
-        did, pid = data.id, data.parentuuid.id
+        did, pid = data.id, data.parent_uuid.id
         if self.debug:
             print("Locking...", did)
 
