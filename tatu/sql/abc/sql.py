@@ -1,4 +1,24 @@
-import json
+#  Copyright (c) 2020. Davi Pereira dos Santos
+#      This file is part of the tatu project.
+#      Please respect the license. Removing authorship by any means
+#      (by code make up or closing the sources) or ignoring property rights
+#      is a crime and is unethical regarding the effort and time spent here.
+#      Relevant employers or funding agencies will be notified accordingly.
+#
+#      tatu is free software: you can redistribute it and/or modify
+#      it under the terms of the GNU General Public License as published by
+#      the Free Software Foundation, either version 3 of the License, or
+#      (at your option) any later version.
+#
+#      tatu is distributed in the hope that it will be useful,
+#      but WITHOUT ANY WARRANTY; without even the implied warranty of
+#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#      GNU General Public License for more details.
+#
+#      You should have received a copy of the GNU General Public License
+#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import warnings
 from abc import abstractmethod, ABC
 from typing import Optional, List
@@ -47,7 +67,7 @@ class SQL(Storage, ABC):
 
         # Check if dumps of matrices/vectors already exist.
         qmarks = ",".join(["?"] * len(data.uuids))
-        self.query(f"select id from dump where id in ({qmarks})", data.ids_lst)
+        self.query(f"select id from content where id in ({qmarks})", data.ids_lst)
         rall = self.get_all()
         stored_hashes = [row["id"] for row in rall]
 
@@ -63,12 +83,16 @@ class SQL(Storage, ABC):
         self.store_dump(dic)
 
         # Insert Data object.
-        if not locked and check_dup:
+        if not locked:
             # ensure UNIQUE constraint (just in case something changed in the meantime since select*)
-            sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
+            if check_dup:
+                sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
+            else:
+                sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
+            data_args = [uuid.id, data.inner and data.inner.id, parentid, data.matrix_names_str, data.ids_str, data.history_str]
         else:
-            sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
-        data_args = [uuid.id, data.inner and data.inner.id, parentid, data.matrix_names_str, data.ids_str, data.history_str]
+            sql = f"update data set inn=?, names=?, fields=?, history=?, t={self._now_function()} where id=?"
+            data_args = [data.inner and data.inner.id, data.matrix_names_str, data.ids_str, data.history_str, uuid.id]
         # from sqlite3 import IntegrityError as IntegrityErrorSQLite
         # from pymysql import IntegrityError as IntegrityErrorMySQL
         # try:
@@ -85,12 +109,18 @@ class SQL(Storage, ABC):
         # else:
         print(f": Data inserted", uuid)
 
-    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Picklable]:
+    def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
         # Fetch data info.
         did = data if isinstance(data, str) else data.id
         self.query(f"select * from data where id=?", [did])
         result = self.get_one()
+        return self._fetch_core_(data, result, lock)
 
+    def _fetch_core_(self, data, result, lock) -> Optional[Picklable]:
+        # Fetch data info.
+        did = data if isinstance(data, str) else data.id
+
+        # Fetch data info.
         if result is None:
             if lock:
                 self.lock(data)
@@ -105,7 +135,7 @@ class SQL(Storage, ABC):
             raise LockedEntryException(did)
 
         names = result["names"].split(",")
-        mids = result["matrices"].split(",")
+        mids = result["fields"].split(",")
         hids = result["history"].split(",")
         inner = result["inn"]
         name_by_mid = dict(zip(mids, names))
@@ -132,10 +162,10 @@ class SQL(Storage, ABC):
         uuids.update(dict(zip(names, map(UUID, mids))))
         return Picklable(uuid=UUID(did), uuids=uuids, history=serialized_hist, storage_info=self.storage_info, inner=inner, **matrices)
 
-    def fetch_matrix(self, id):
+    def fetch_field(self, id):
         # TODO: quando faz select em algo que não existe, fica esperando
         #  infinitamente algum lock liberar
-        self.query(f"select value from dump where id=?", [id])
+        self.query(f"select value from content where id=?", [id])
         rone = self.get_one()
         if rone is None:
             raise Exception("Matrix not found!", id)
@@ -145,7 +175,7 @@ class SQL(Storage, ABC):
         if len(duids) == 0:
             return [] if aslist else dict()
         qmarks = ",".join(["?"] * len(duids))
-        sql = f"select id,value from dump where id in ({qmarks}) order by n"
+        sql = f"select id,value from content where id in ({qmarks}) order by n"
         self.query(sql, duids)
         rall = self.get_all()
         id_value = {row["id"]: unpack(row["value"]) for row in rall}
@@ -159,11 +189,6 @@ class SQL(Storage, ABC):
         # if not locked:
         #     raise UnlockedEntryException('Cannot unlock if it is not locked!')
         self.query(f"delete from data where id=?", [data.uuid.id])
-
-    def list_by_name(self, substring, only_historyless=True):
-        # TODO: Pra fins de fetchbylist, pode ser usado o próprio Data se a
-        #       implementação passar a ser lazy. (ORM-like behavior)
-        pass
 
     @staticmethod
     @abstractmethod
@@ -201,22 +226,56 @@ class SQL(Storage, ABC):
                 inn char(23),
                 parent char(23) UNIQUE,
                 names VARCHAR(255) NOT NULL,
-                matrices VARCHAR(2048), 
+                fields TEXT, 
                 history TEXT,
-                t TIMESTAMP, 
-                FOREIGN KEY (inn) REFERENCES data(id)
+                t TIMESTAMP 
             )"""
         )
         # REMINDER não pode ter [FOREIGN KEY (parent) REFERENCES data(id)] pq nem sempre o parent vai pra base
 
+        # FOREIGN KEY (inn) REFERENCES data(id)  <- REMINDER problems with locking an outer data
+
         self.query(
             f"""
-            create table if not exists dump (
+            create table if not exists content (
                 n integer NOT NULL primary key {self._auto_incr()},
                 id char(23) NOT NULL UNIQUE,
                 value LONGBLOB NOT NULL
             )"""
         )
+
+        self.query(
+            f"""
+            create table if not exists step (
+                n integer NOT NULL primary key {self._auto_incr()},
+                id char(23) NOT NULL UNIQUE,
+                name varchar(60),
+                path varchar(250),
+                config text,
+                dump LONGBLOB
+            )"""
+        )
+
+        # Table to speed up look up for already synced Data objects.
+        self.query(
+            f"""
+            create table if not exists sync (
+                n integer NOT NULL primary key {self._auto_incr()},
+                storage char(23) NOT NULL unique,
+                last char(23) NOT NULL,
+                t TIMESTAMP
+            )"""
+        )
+        # FOREIGN KEY (attr) REFERENCES attr(aid)
+        # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
+        # self.query(f'CREATE INDEX nam1 ON dataset (attr)')
+        # insl timestamp NOT NULL     # unique(dataset, hist),
+        # spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
+        # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
+        # insd=insd, upd={self._now_function()} where did=?
+        #     x = coalesce(values(x), x),
+        #     from res left join data on dout = did
+        #     left join dataset on dataset = dsid where
 
     def get_one(self) -> Optional[dict]:
         """
@@ -249,7 +308,7 @@ class SQL(Storage, ABC):
         lst = [(duid, memoryview(dump) if isinstance(self, SQLite) else dump) for duid, dump in lst.items()]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self.insert_many(lst, "dump")
+            self.insert_many(lst, "content")
 
     def lock(self, data):
         # REMINDER relaxing constraints
@@ -264,21 +323,23 @@ class SQL(Storage, ABC):
         from sqlite3 import IntegrityError as IntegrityErrorSQLite
         from pymysql import IntegrityError as IntegrityErrorMySQL
 
-        try:
+        try:  # REMINDER that exception would be on the way of mysql lock() due to inner 'inn' field FK constraint
             self.query(sql, args)
         except IntegrityErrorSQLite as e:
-            # print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
-            pass
+            print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+            exit()
         except IntegrityErrorMySQL as e:
-            # print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
-            pass
+            print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+            exit()
         else:
             print(f"Now locked for {did}")
 
-    def query(self, sql, args=None):
+    def query(self, sql, args=None, cursor=None):
+        if cursor is None:
+            cursor = self.cursor
         if self.read_only and not sql.startswith("select "):
             print("========================================\n", "Attempt to write onto read-only storage!", sql)
-            self.cursor.execute("select 1")
+            cursor.execute("select 1")
             return
         if args is None:
             args = []
@@ -286,26 +347,26 @@ class SQL(Storage, ABC):
 
         msg = self._interpolate(sql, args)
         if self.debug:
-            print(msg)
+            print(self.name + ":\t>>>>> " + msg)
         if isinstance(self, MySQL):
             sql = sql.replace("?", "%s")
             sql = sql.replace("insert or ignore", "insert ignore")
             # self.connection.ping(reconnect=True)
 
-        try:
-            self.cursor.execute(sql, args)
-        except Exception as ex:
-            # From a StackOverflow answer...
-            import sys
-            import traceback
-
-            msg = "STORAGE DBG:" + self.info + "\n" + msg
-            # Gather the information from the original exception:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            # Format the original exception for a nice printout:
-            traceback_string = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-            # Re-raise a new exception of the same class as the original one
-            raise type(ex)("%s\norig. trac.:\n%s\n" % (msg, traceback_string))
+        # try:
+        cursor.execute(sql, args)
+        # except Exception as ex:
+        #     # From a StackOverflow answer...
+        #     import sys
+        #     import traceback
+        #
+        #     msg = "STORAGE DBG:" + self.info + "\n" + msg
+        #     # Gather the information from the original exception:
+        #     exc_type, exc_value, exc_traceback = sys.exc_info()
+        #     # Format the original exception for a nice printout:
+        #     traceback_string = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        #     # Re-raise a new exception of the same class as the original one
+        #     raise type(ex)("%s\norig. trac.:\n%s\n" % (msg, traceback_string))
 
     def __del__(self):
         try:
@@ -328,13 +389,55 @@ class SQL(Storage, ABC):
             sql = sql.replace("insert or ignore", "insert ignore")
         self.cursor.executemany(sql, list_of_tuples)
 
-    # FOREIGN KEY (attr) REFERENCES attr(aid)
-    # self.query(f'CREATE INDEX nam0 ON dataset (des{self._keylimit()})')
-    # self.query(f'CREATE INDEX nam1 ON dataset (attr)')
-    # insl timestamp NOT NULL     # unique(dataset, hist),
-    # spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
-    # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
-    # insd=insd, upd={self._now_function()} where did=?
-    #     x = coalesce(values(x), x),
-    #     from res left join data on dout = did
-    #     left join dataset on dataset = dsid where
+    def _update_remote_(self, storage):
+        stid = storage.id
+
+        # List all Data uuids since last synced one, but insert only the ones not already there.
+        lastid = f"select last from sync where storage='{stid}'"
+        lastn = f"IFNULL((select n from data where id in ({lastid})), -1)"
+        self.query(f"select id from data where n > {lastn} order by n")
+        cursor2 = self.connection.cursor()
+        for row0 in self.cursor:
+            did = row0["id"]
+            if not storage.hasdata(did):
+                # Get rest of data info.
+                self.query(f"select * from data where id=?", [did], cursor2)
+                row = dict(cursor2.fetchone())
+
+                # Send fields
+                for fieldid in row["fields"].split(",") + row["history"].split(","):
+                    if not storage.hascontent(fieldid):
+                        self.query("select id, value from content where id=?", [fieldid], cursor2)
+                        storage.putcontent(**cursor2.fetchone())
+
+                # Send data.
+                del row["n"]
+                del row["t"]
+                storage.putdata(**row)
+
+                # Update table sync as soon as possible, to behave well in case of interruption of a long list of inserts.
+                # TODO a single query to insert / update
+                self.query(f"delete from sync where storage=?", [stid], cursor2)
+                self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
+
+    def _hasdata_(self, id):
+        self.query(f"select 1 from data where id=?", [id])
+        return self.get_one() is not None
+
+    def _hascontent_(self, id):
+        self.query(f"select 1 from content where id=?", [id])
+        return self.get_one() is not None
+
+    def _hasstep_(self, id):
+        self.query(f"select 1 from step where id=?", [id])
+        return self.get_one() is not None
+
+    def _putdata_(self, **row):
+        qmarks = ",".join(["?"] * len(row))
+        self.query(f"INSERT INTO data ({','.join(row.keys())}, t) VALUES ({qmarks}, {self._now_function()})", list(row.values()))
+
+    def _putcontent_(self, id, value):
+        self.query(f"INSERT INTO content VALUES (NULL, ?, ?)", [id, value])
+
+    def _putstep_(self, id, name, path, config, dump=None):
+        self.query(f"INSERT INTO step VALUES (NULL, ?, ?, ?, ?, ?)", [id, name, path, config, dump])
