@@ -155,7 +155,7 @@ class SQL(Storage, ABC):
         # REMINDER: não deserializar antes de por no histórico, pois o data.picklable manda serializado; senão, não fica picklable
         #   a única forma seria implementar a travessia recusrsiva de subcomponentes para deixar como dicts (picklable) e depois jsonizar apenas aqui.
         #   é preciso ver se há alguma vantagem nisso; talvez desempenho e acessibilidade de chaves dos dicts; por outro lado,
-        #   da forma atual o json faz tudo junto num travessia única
+        #   da forma atual o json faz tudo junto num travessia única  DECIDI fazer a travessia e só jsonizar/dejasonizar dentro de storage
 
         # TODO: failure and timeout should be stored/fetched! ver como fica na versao lazy, tipo: é só guardar _matrices? ou algo mais?
         uuids = {} if isinstance(data, str) else data.uuids
@@ -218,6 +218,7 @@ class SQL(Storage, ABC):
         # REMINDER 'inner' is a SQL reserved word.
         # REMINDER d.parent = d.uuid / lastStep.uuid; the field is here just to speed up search of children.
         # TODO create index on column 'id' (and FKs if needed)
+        # parent=NULL means child of Root
         self.query(
             f"""
             create table if not exists data (
@@ -225,9 +226,9 @@ class SQL(Storage, ABC):
                 id char(23) NOT NULL UNIQUE,
                 inn char(23),
                 parent char(23) UNIQUE,
-                names VARCHAR(255) NOT NULL,
+                names VARCHAR(255),
                 fields TEXT, 
-                history TEXT,
+                step char(23),
                 t TIMESTAMP 
             )"""
         )
