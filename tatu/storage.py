@@ -8,7 +8,6 @@ from typing import Optional
 
 from aiuna.content.data import Data, Picklable
 from cruipto.uuid import UUID
-from transf.absdata import AbsData
 from transf.step import Step
 
 
@@ -159,7 +158,7 @@ class Storage(ABC):
             else:
                 self.queue.put(job)
 
-    def fetch(self, data: Data, lock=False, recursive=True) -> AbsData:
+    def fetch(self, data: Data, lock=False, recursive=True) -> Data:
         """Fetch data from DB.
 
         Parameters
@@ -183,7 +182,8 @@ class Storage(ABC):
         return data and data.unpicklable
 
     def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Optional[Picklable]:
-        data = data.picklable if isinstance(data, AbsData) else data
+        data = data.picklable if isinstance(data, Data) else data
+        # TODO usar a lista de unpicklables p/ reciperar lazies após fetch; faltou usar isso pra recuperar stream tb, apesar de que é inconsistente armazenar algo que tinha um stream
         lst = []
         while data is not None:
             if self.blocking:
@@ -193,7 +193,7 @@ class Storage(ABC):
 
                 # Wait for result.
                 output = self.outqueue.get()
-                if not (output is None or isinstance(output, AbsData)):
+                if not (output is None or isinstance(output, Data)):
                     id = data if isinstance(data, str) else data.id
                     print("type:", type(output), output)
                     print(f"Couldn't fetch {id}. Quiting...")

@@ -106,7 +106,8 @@ class SQL(Storage, ABC):
 
         # Fetch matrices (lazily, if storage_info is provided).
         new_mids = [mid for mid in mids if isinstance(data, str) or mid not in data.ids_lst]
-        matrices = {} if isinstance(data, str) else data.matrices
+        # noinspection PyProtectedMember
+        matrices = {} if isinstance(data, str) else data._matrices
         if self.storage_info is None:
             matrices_by_mid = self.fetch_dumps(new_mids)
             for mid in new_mids:
