@@ -1,4 +1,26 @@
+#  Copyright (c) 2020. Davi Pereira dos Santos
+#      This file is part of the tatu project.
+#      Please respect the license. Removing authorship by any means
+#      (by code make up or closing the sources) or ignoring property rights
+#      is a crime and is unethical regarding the effort and time spent here.
+#      Relevant employers or funding agencies will be notified accordingly.
+#
+#      tatu is free software: you can redistribute it and/or modify
+#      it under the terms of the GNU General Public License as published by
+#      the Free Software Foundation, either version 3 of the License, or
+#      (at your option) any later version.
+#
+#      tatu is distributed in the hope that it will be useful,
+#      but WITHOUT ANY WARRANTY; without even the implied warranty of
+#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#      GNU General Public License for more details.
+#
+#      You should have received a copy of the GNU General Public License
+#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import _pickle as pickle
+import json
 import os
 import traceback
 from glob import glob
@@ -6,6 +28,7 @@ from pathlib import Path
 from typing import Optional
 
 from aiuna.content.data import Data, Picklable
+from cruipto.uuid import UUID
 from tatu.disk import save, load
 from tatu.storage import (
     Storage,
@@ -17,12 +40,16 @@ from tatu.storage import (
 
 
 class Pickle(Storage):
-    def __init__(self, blocking=False, db="tatu-sqlite", compress=True):
+    def __init__(self, threaded=True, db="tatu-sqlite", compress=True):
         self.db = db
         self.compress = compress
         if not Path(db).exists():
             os.mkdir(db)
-        super().__init__(blocking, timeout=1)
+        self._uuid = UUID(json.dumps([db, compress], sort_keys=True, ensure_ascii=False).encode())
+        super().__init__(threaded, timeout=1)
+
+    def _uuid_(self):
+        return self._uuid
 
     def _delete_(self, data: Data, check_missing=True):
         locked = self._filename("", data)
@@ -30,7 +57,7 @@ class Pickle(Storage):
             raise MissingEntryException("Does not exist:", data.id)
         os.remove(locked)
 
-    def _fetch_picklable_(self, data: Data, lock=False) -> Optional[Picklable]:
+    def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 
@@ -74,18 +101,6 @@ class Pickle(Storage):
             os.remove(locked)
 
         self._dump(data, filename)
-
-    def list_by_name(self, substring, only_original=True):
-        datas = []
-        path = self.db + f"/*{substring}*-*.dump"
-        for file in sorted(glob(path), key=os.path.getmtime):
-            data = self._load(file)
-            if only_original and len(data.history) == 1:
-                datas.append(data)  # Data is now fully lazy, so nothing will be retrieved.
-        return datas
-
-    def fetch_matrix(self, id):
-        raise NotImplementedError
 
     def _filename(self, prefix, data):
         zip = "compressed" if self.compress else ""
@@ -148,14 +163,21 @@ class Pickle(Storage):
         print("W: Unlocking...", filename)
         os.remove(filename)
 
-    def _open(self):
+    def _open_(self):
         pass
 
+    def fetch_field(self, _id):
+        raise NotImplementedError
 
-# from tatu.sql.sqlite import SQLite
-# PickleServer().store(File("iris.arff").data)
-# print(PickleServer().visual_history(File("iris.arff").data.id))
-# exit()
+    # def list_by_name(self, substring, only_original=True):
+    #     datas = []
+    #     path = self.db + f"/*{substring}*-*.dump"
+    #     for file in sorted(glob(path), key=os.path.getmtime):
+    #         data = self._load(file)
+    #         if only_original and len(data.history) == 1:
+    #             datas.append(data)  # Data is now fully lazy, so nothing will be retrieved.
+    #     return datas
+
 
 def sqlite_Test():
     from tatu.sql.sqlite import SQLite
@@ -164,6 +186,11 @@ def sqlite_Test():
     SQLite().delete(data, check_missing=False)
     SQLite().store(data)
     print(SQLite().visual_history(File("iris.arff").data.id))
+
+# from tatu.sql.sqlite import SQLite
+# PickleServer().store(File("iris.arff").data)
+# print(PickleServer().visual_history(File("iris.arff").data.id))
+# exit()
 
 # from tatu.sql.mysql import MySQL
 # MySQL(db="tatu:xxxxx@localhost/tatu").store(File("iris.arff").data)
