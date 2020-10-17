@@ -60,7 +60,7 @@ parei aqui
         # reconstruct lineage
         # if data is None:   <- nao embro o motivo de por isso errado aqui
         #     return None
-        return reduce(lambda inner, outer: outer.replace([], inner=inner), reversed(lst))
+        return reduce(lambda inner, outer: outer.update([], inner=inner), reversed(lst))
 
     def hasdata(self, id, check_fields=False):
         """ check_fields: whether to assess the existence of fields, instead of just the data row"""
