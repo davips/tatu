@@ -26,7 +26,7 @@ from typing import List
 
 from aiuna.content.data import Data
 from cruipto.uuid import UUID
-from tatu.sql.abc.sql import SQL
+from tatu.sql.abs.sql import SQL
 from transf.absdata import AbsData
 
 
@@ -47,17 +47,22 @@ class SQLite(SQL):
     def _open_(self):
         # isolation_level=None -> SQLite autocommiting
         # isolation_level='DEFERRED' -> SQLite transactioning
-        self.connection = sqlite3.connect(self.database, isolation_level=None)
+        self.connection = sqlite3.connect(self.database, isolation_level='DEFERRED')
         self.connection.row_factory = sqlite3.Row
         self.cursor = self.connection.cursor()
+atualizar queries chamadas, incluindo commit
 
         # Create tables if they don't exist yet.
         try:
-            self.query(f"select 1 from data")
+            self.query2(f"select 1 from data")
         except:
             if self.debug:
                 print("creating database", self.database, "...")
             self._setup()
+            self.commit()
+
+    def commit(self):
+        self.connection.commit()
 
     @staticmethod
     def _now_function():
@@ -74,3 +79,9 @@ class SQLite(SQL):
     @staticmethod
     def _on_conflict(fields=""):
         return f"ON CONFLICT{fields} DO UPDATE SET"
+
+    def insert_ignore(self):
+        return "insert or ignore"
+
+    def placeholder(self):
+        return "?"

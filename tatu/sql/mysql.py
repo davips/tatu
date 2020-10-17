@@ -26,7 +26,7 @@ import pymysql
 import pymysql.cursors
 
 from cruipto.uuid import UUID
-from tatu.sql.abc.sql import SQL
+from tatu.sql.abs.sql import SQL
 
 
 class MySQL(SQL):
@@ -71,27 +71,30 @@ class MySQL(SQL):
         if self.debug:
             print("getting cursor...")
         self.cursor = self.connection.cursor()
+atualizar queries chamadas, incluindo commit
 
         # Create db if it doesn't exist yet.
-        self.query(f"SHOW DATABASES LIKE '{self.db}'")
+        self.query2(f"SHOW DATABASES LIKE '{self.db}'")
         setup = self.get_one() is None
         if setup:
             if self.debug:
                 print("creating database", self.db, "on", self.database, "...")
             self.cursor.execute("create database if not exists " + self.db)
+            self.commit()
 
         if self.debug:
             print("using database", self.db, "on", self.database, "...")
         self.cursor.execute("use " + self.db)
-        self.query(f"show tables")
+        self.query2(f"show tables")
 
         # Create tables if they don't exist yet.
         try:
-            self.query(f"select 1 from data")
+            self.query2(f"select 1 from data")
         except:
             if self.debug:
                 print("creating database", self.database, "...")
             self._setup()
+            self.commit()
 
         return self
 
@@ -110,3 +113,9 @@ class MySQL(SQL):
     @staticmethod
     def _on_conflict(fields=None):
         return "ON DUPLICATE KEY UPDATE"
+
+    def insert_ignore(self):
+        return "insert ignore"
+
+    def placeholder(self):
+        return "%s"
