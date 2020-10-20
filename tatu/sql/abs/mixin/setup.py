@@ -98,7 +98,6 @@ class withSetup(ABC):
                 stream boolean,
                 parent char(23) not null,
                 locked boolean not null,
-                t DATETIME,
                 unique(stepid, parent),
                 FOREIGN KEY (step) REFERENCES step(id),
                 FOREIGN KEY (inn) REFERENCES data(id),
@@ -150,7 +149,27 @@ class withSetup(ABC):
         )
         self.query2(f'CREATE INDEX idx11 ON stream (chunk)')
 
-        # spent FLOAT,        # fail TINYINT,      # start TIMESTAMP NOT NULL,
+        # Table to record volatile info, i.e. related to a specific run of a step* (e.g. person specific or several runs to assess time).
+        # 'id' here is a universal time based UUID(), instead of being based on a hash or on a multiplication like the other ones.
+        # * -> related to a specific generation of a Data object - more precisely. Many rows can exist for the same Data object.
+        # 'alive': time of last ping from 'node'
+        # 'duration'=NULL while not finished
+        self.query2(
+            f"""
+            create table if not exists run (
+                id char(23) NOT NULL primary key,
+                data char(23) NOT NULL,
+                duration float,
+                node char(255) NOT NULL,
+                alive DATETIME,
+                t DATETIME,
+                FOREIGN KEY (data) REFERENCES data(id)
+            )"""
+        )
+        self.query2(f'CREATE INDEX idx12 ON run (data)')
+        self.query2(f'CREATE INDEX idx13 ON run (node)')
+
+        # fail TINYINT
         # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
         #     x = coalesce(values(x), x),   # Return the first non-null value in a list
         #     from res left join data on dout = did

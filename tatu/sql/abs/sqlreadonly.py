@@ -59,6 +59,7 @@ class SQLReadOnly(Storage, withSetup, ABC):
             if row["locked"]:
                 raise Exception("Cannot get a locked Data object.")
             uuids[row["field_name"]] = row["field_id"]
+        # noinspection PyUnboundLocalVariable
         step, inn, stream, parentid = row["step"], row["inn"], row["stream"], row["parent"]
 
         # We put parent uuid in the place of the History object, meaning that it should be retrieved later.
