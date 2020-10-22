@@ -45,7 +45,7 @@ class MySQL(SQL):
             raise Exception("'-' not allowed in db name!")
         self.hostname = socket.gethostname()
 
-        self._uuid = UUID(db.encode())
+        self._uuid = UUID((self.__class__.__name__ + db).encode())
         super().__init__(threaded, timeout=8)
 
     def _uuid_(self):

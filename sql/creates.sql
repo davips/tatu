@@ -2,13 +2,13 @@ create table if not exists content (
     id char(23) NOT NULL primary key,
     value LONGBLOB NOT NULL
 );
-CREATE INDEX idx0 ON content (id);
 
 create table if not exists config (
     id char(23) NOT NULL primary key,
     params text NOT NULL
 );
 CREATE INDEX idx1 ON config (params(255));
+-- 04fmE1EWKIsDKlrhOf6vky3 is the uuid of the empty config {}
 insert into config values ('04fmE1EWKIsDKlrhOf6vky3', '{}');
 
 create table if not exists step (
@@ -24,8 +24,8 @@ create table if not exists step (
 CREATE INDEX idx2 ON step (id);
 CREATE INDEX idx3 ON step (name);
 CREATE INDEX idx4 ON step (path);
--- 3oawXk8ZTPtS5DBsghkFNnz is the uuid of NoOp()
-insert into step values (null, '048e4WDl9tFnovD6HYHePEb', 'NoOp', 'akangatu.noop', '04fmE1EWKIsDKlrhOf6vky3', null);
+-- 3oawXk8ZTPtS5DBsghkFNnz is the uuid of NoOp() also known as identity matrix.
+insert into step values (null, '3oawXk8ZTPtS5DBsghkFNnz', 'NoOp', 'akangatu.noop', '04fmE1EWKIsDKlrhOf6vky3', null);
 
 
 create table if not exists data (
@@ -33,10 +33,9 @@ create table if not exists data (
     id char(23) NOT NULL UNIQUE,
     step char(23) NOT NULL,
     inn char(23),
-    stream boolean,
+    stream boolean not null,
     parent char(23) not null,
     locked boolean not null,
-    t DATETIME,
     unique(step, parent),
     FOREIGN KEY (step) REFERENCES step(id),
     FOREIGN KEY (inn) REFERENCES data(id),
@@ -46,7 +45,7 @@ CREATE INDEX idx5 ON data (id);
 CREATE INDEX idx6 ON data (step);
 CREATE INDEX idx7 ON data (parent);
 -- '3oawXk8ZTPtS5DBsghkFNnz' is the identity matrix / identity step: x(x) = x
-insert into data values (null, '00000000000000000000001', '048e4WDl9tFnovD6HYHePEb', null, false, '00000000000000000000001', false, now());
+insert into data values (null, '00000000000000000000001', '3oawXk8ZTPtS5DBsghkFNnz', null, false, '00000000000000000000001', false, now());
 
 create table if not exists field (
     data char(23) NOT NULL,

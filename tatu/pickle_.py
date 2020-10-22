@@ -27,21 +27,14 @@ from glob import glob
 from pathlib import Path
 from typing import Optional, List
 
-from aiuna.content.data import Data, Picklable
+from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from tatu.disk import save, load
-from tatu.storage import (
-    Storage,
-    LockedEntryException,
-    FailedEntryException,
-    DuplicateEntryException,
-    UnlockedEntryException, MissingEntryException,
-)
-from transf.absdata import AbsData
+from tatu.storage import Storage
 
 
 class Pickle(Storage):
-    def _fetch_children_(self, data: Data) -> List[AbsData]:
+    def _fetch_children_(self, data: Data):
         raise Exception("Storage Pickle cannot retrieve children!")
 
     def __init__(self, threaded=True, db="tatu-sqlite", compress=True):
@@ -61,7 +54,7 @@ class Pickle(Storage):
             raise MissingEntryException("Does not exist:", data.id)
         os.remove(locked)
 
-    def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
+    def _fetch_(self, data: Data, lock=False) :
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 

@@ -18,18 +18,14 @@
 #      You should have received a copy of the GNU General Public License
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
-import json
-import warnings
-from abc import abstractmethod, ABC
-from typing import Optional, List
+from abc import ABC
 
-from aiuna.compression import unpack
-from aiuna.content.data import Data, Picklable
+from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from tatu.sql.abs.mixin.setup import withSetup
-from tatu.sql.abs.mixin.thread import asThread
-from tatu.storage import Storage, DuplicateEntryException, LockedEntryException, MissingEntryException
-from transf.customjson import CustomJSONEncoder
+from tatu.sql.result import Result
+from tatu.storage import Storage
+from transf.step import Step
 
 
 class SQLReadOnly(Storage, withSetup, ABC):
@@ -38,37 +34,46 @@ class SQLReadOnly(Storage, withSetup, ABC):
 
     def _hasdata_(self, id, include_empty=True):
         if include_empty:
-            sql = f"select 1 from data where id='?' limit 1"
+            sql = f"select 1 from data where id=? limit 1"
         else:
             # REMINDER Inner join ensures a Data row with fields.
-            nonempty = f"select 1 from data d INNER JOIN field f ON d.id=f.data where d.id='?' limit 1"
-            withstream = "select 1 from data where id='00000000000000000000012' and stream=true"
-            sql = f"({nonempty}) UNION {withstream}"
-        return self.read(sql, [id]).fetchone() is not None
+            nonempty = f"select 1 from data d INNER JOIN field f ON d.id=f.data where d.id=? limit 1"
+            withstream = "select 1 from data where id=? and stream=true"
+            sql = f"{withstream} UNION {nonempty}"
+        return self.read(sql, [id, id]).fetchone() is not None
 
     def _getdata_(self, id, include_empty=True):
-        cols = "step,inn,stream,parent,locked,name as field_name,content as field_id"
+        cols = "step,inn,stream,locked,name as field_name,content as field_id"
         sql = f"select {cols} from data d {'left' if include_empty else 'inner'} join field f on d.id=f.data where d.id=?"
         r = self.read(sql, [id]).fetchall()
-        if r is None:
+        if not r:
             return
-
-        # Build a lazy Data object with a lazy history.
         uuids = {}
         for row in r:
             if row["locked"]:
                 raise Exception("Cannot get a locked Data object.")
             uuids[row["field_name"]] = row["field_id"]
-        # noinspection PyUnboundLocalVariable
-        step, inn, stream, parentid = row["step"], row["inn"], row["stream"], row["parent"]
+        return {"uuids": uuids, "step": row["step"], "inner": row["inn"], "stream": row["stream"]}
 
-        # We put parent uuid in the place of the History object, meaning that it should be retrieved later.
-        # The same is done with uuids vs fields, and boolean vs stream.
-parei aqui
-        return Data(id, uuids, history=parentid, parent_uuid=parentid, stream=stream, **uuids)
+    def _getstep(self, id):
+        row = self.read("select name,path,params from step s inner join config c on s.id=c.step where s.id=?", [id]).fetchone()
+        if row is None:
+            return
+        desc = {"name": row["name"], "path": row["path"], "config": row["params"]}
+        return desc
 
     def _hasstep_(self, id):
         return self.read(f"select 1 from step where id=?", [id]).fetchone() is not None
+
+    def _hascontent_(self, id):
+        return self.read(f"select 1 from content where id=?", [id]).fetchone() is not None
+
+    def _hasfield_(self, id):
+        return self.read(f"select 1 from content where id=?", [id]).fetchone() is not None
+
+    def _missing_(self, ids):
+        lst = [row["id"] for row in self.read(f"select id from content where id in ({('?,' * len(ids))[:-1]})", ids).fetchall()]
+        return [id for id in ids if id not in lst]
 
     # def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
     #     # Fetch data info.
@@ -211,11 +216,6 @@ parei aqui
     #         print('Couldn\'t close database, but that\'s ok...', e)
     #         pass
     #
-    # @staticmethod
-    # def _interpolate(sql, lst0):
-    #     lst = [str(w)[:100] for w in lst0]
-    #     zipped = zip(sql.replace("?", '"?"').split("?"), map(str, lst + [""]))
-    #     return "".join(list(sum(zipped, ()))).replace('"None"', "NULL")
     #
     #
     # #     #     # From a StackOverflow answer...
@@ -231,17 +231,15 @@ parei aqui
     # #     #     raise type(ex)("%s\norig. trac.:\n%s\n" % (msg, traceback_string))
 
     def read(self, sql, args=[], cursor=None):
-        self._query(sql, args, cursor)
-        return self.cursor
+        if not (sql.startswith("select ") or sql.startswith("(select ")):
+            raise Exception("========================================\n", "Attempt to write onto read-only storage!", sql)
+        self.query2(sql, args, cursor)
+        return Result(self.connection, cursor or self.cursor)
 
     # noinspection PyDefaultArgument
-    def _query(self, sql, args=[], cursor=None):
-        if cursor is None:
-            cursor = self.cursor
-        if not sql.startswith("select "):
-            raise Exception("========================================\n", "Attempt to write onto read-only storage!", sql)
-            # TODO catch / finalize connection?
-            return
+    def query2(self, sql, args=[], cursor=None):
+        # TODO with / catch / finalize connection?
+        cursor = cursor or self.cursor
         if self.debug:
             msg = self._interpolate(sql, args)
             print(self.name + ":\t>>>>> " + msg)
@@ -249,3 +247,9 @@ parei aqui
         sql = sql.replace("insert or ignore", self.insert_ignore)
         # self.connection.ping(reconnect=True)
         return cursor.execute(sql, args)
+
+    @staticmethod
+    def _interpolate(sql, lst0):
+        lst = [str(w)[:100] for w in lst0]
+        zipped = zip(sql.replace("?", '"?"').split("?"), map(str, lst + [""]))
+        return "".join(list(sum(zipped, ()))).replace('"None"', "NULL")

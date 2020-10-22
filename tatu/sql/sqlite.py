@@ -27,9 +27,6 @@ from typing import List
 from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from tatu.sql.abs.sql import SQL
-from transf.absdata import AbsData
-
-
 class SQLite(SQL):
     def __init__(self, db="tatu-sqlite", threaded=True, storage_info=None, debug=not False, read_only=False):
         self.info = db
@@ -38,7 +35,7 @@ class SQLite(SQL):
         self.database = db + ".db"
         self.storage_info = storage_info
         self.debug = debug
-        self._uuid = UUID(db.encode())
+        self._uuid = UUID((self.__class__.__name__ + db).encode())
         super().__init__(threaded, timeout=2)
 
     def _uuid_(self):
@@ -50,7 +47,6 @@ class SQLite(SQL):
         self.connection = sqlite3.connect(self.database, isolation_level='DEFERRED')
         self.connection.row_factory = sqlite3.Row
         self.cursor = self.connection.cursor()
-atualizar queries chamadas, incluindo commit
 
         # Create tables if they don't exist yet.
         try:
@@ -80,8 +76,10 @@ atualizar queries chamadas, incluindo commit
     def _on_conflict(fields=""):
         return f"ON CONFLICT{fields} DO UPDATE SET"
 
+    @property
     def insert_ignore(self):
         return "insert or ignore"
 
+    @property
     def placeholder(self):
         return "?"

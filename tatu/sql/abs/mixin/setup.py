@@ -54,7 +54,6 @@ class withSetup(ABC):
                 value LONGBLOB NOT NULL
             )"""
         )
-        self.query2(f'CREATE INDEX idx0 ON content (id)')
 
         # Table with values for parameters of Step objects. Insert the empty config as the fisrt one.
         # '04fmE1EWKIsDKlrhOf6vky3' = UUID("{}".encode()).id
@@ -65,7 +64,7 @@ class withSetup(ABC):
                 params text NOT NULL
             )"""
         )
-        self.query2(f'CREATE INDEX idx1 ON config (params({self._keylimit()}))')
+        self.query2(f'CREATE INDEX if not exists idx1 ON config (params{self._keylimit()})')
         self.query2("insert into config values ('04fmE1EWKIsDKlrhOf6vky3', '{}')")
 
         # Table with steps. The mythical NoOp step that created the Root data is inserted as the first one (due to constraint issues).
@@ -82,10 +81,10 @@ class withSetup(ABC):
                 FOREIGN KEY (content) REFERENCES content(id)
             )"""
         )
-        self.query2(f'CREATE INDEX idx2 ON step (id)')
-        self.query2(f'CREATE INDEX idx3 ON step (name)')
-        self.query2(f'CREATE INDEX idx4 ON step (path)')
-        self.query2("insert into step values (null, '048e4WDl9tFnovD6HYHePEb', 'NoOp', 'akangatu.noop', '04fmE1EWKIsDKlrhOf6vky3', null)")
+        self.query2(f'CREATE INDEX if not exists idx2 ON step (id)')
+        self.query2(f'CREATE INDEX if not exists idx3 ON step (name)')
+        self.query2(f'CREATE INDEX if not exists idx4 ON step (path)')
+        self.query2("insert into step values (null, '3oawXk8ZTPtS5DBsghkFNnz', 'NoOp', 'akangatu.noop', '04fmE1EWKIsDKlrhOf6vky3', null)")
 
         # Table data.
         self.query2(
@@ -95,19 +94,19 @@ class withSetup(ABC):
                 id char(23) NOT NULL UNIQUE,
                 step char(23) NOT NULL,
                 inn char(23),
-                stream boolean,
+                stream boolean not null,
                 parent char(23) not null,
                 locked boolean not null,
-                unique(stepid, parent),
+                unique(step, parent),
                 FOREIGN KEY (step) REFERENCES step(id),
                 FOREIGN KEY (inn) REFERENCES data(id),
                 FOREIGN KEY (parent) REFERENCES data(id)
             )"""
         )
-        self.query2(f'CREATE INDEX idx5 ON data (id)')
-        self.query2(f'CREATE INDEX idx6 ON data (step)')
-        self.query2(f'CREATE INDEX idx7 ON data (parent)')
-        self.query2(f"insert into data values (null, '00000000000000000000001', '048e4WDl9tFnovD6HYHePEb', null, false, '00000000000000000000001', false, {self._now_function()}")
+        self.query2(f'CREATE INDEX if not exists idx5 ON data (id)')
+        self.query2(f'CREATE INDEX if not exists idx6 ON data (step)')
+        self.query2(f'CREATE INDEX if not exists idx7 ON data (parent)')
+        self.query2(f"insert into data values (null, '00000000000000000000001', '3oawXk8ZTPtS5DBsghkFNnz', null, false, '00000000000000000000001', false)")
 
         self.query2(
             f"""
@@ -120,8 +119,8 @@ class withSetup(ABC):
                 FOREIGN KEY (content) REFERENCES content(id)
             )"""
         )
-        self.query2(f'CREATE INDEX idx8 ON field (name)')
-        self.query2(f'CREATE INDEX idx9 ON field (data)')
+        self.query2(f'CREATE INDEX if not exists idx8 ON field (name)')
+        self.query2(f'CREATE INDEX if not exists idx9 ON field (data)')
 
         # Table to speed up lookup for not yet synced Data objects.
         self.query2(
@@ -133,7 +132,7 @@ class withSetup(ABC):
                 FOREIGN KEY (data) REFERENCES data(id)
             )"""
         )
-        self.query2(f'CREATE INDEX idx10 ON storage (dataid)')
+        self.query2(f'CREATE INDEX if not exists idx10 ON storage (data)')
 
         # Table to record stream, like folds of cross-validation (or chunks of a datastream?).
         self.query2(
@@ -142,12 +141,12 @@ class withSetup(ABC):
                 data char(23) NOT NULL primary key,
                 pos integer not null,
                 chunk char(23) NOT NULL,
-                primary key (data, pos),
+                unique (data, pos),
                 FOREIGN KEY (data) REFERENCES data(id),
                 FOREIGN KEY (chunk) REFERENCES data(id)
             )"""
         )
-        self.query2(f'CREATE INDEX idx11 ON stream (chunk)')
+        self.query2(f'CREATE INDEX if not exists idx11 ON stream (chunk)')
 
         # Table to record volatile info, i.e. related to a specific run of a step* (e.g. person specific or several runs to assess time).
         # 'id' here is a universal time based UUID(), instead of being based on a hash or on a multiplication like the other ones.
@@ -166,8 +165,8 @@ class withSetup(ABC):
                 FOREIGN KEY (data) REFERENCES data(id)
             )"""
         )
-        self.query2(f'CREATE INDEX idx12 ON run (data)')
-        self.query2(f'CREATE INDEX idx13 ON run (node)')
+        self.query2(f'CREATE INDEX if not exists idx12 ON run (data)')
+        self.query2(f'CREATE INDEX if not exists idx13 ON run (node)')
 
         # fail TINYINT
         # update data set {','.join([f'{k}=?' for k in to_update.keys()])}

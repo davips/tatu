@@ -31,9 +31,6 @@ from tatu.storage import Storage
 from aiuna.compression import pack, unpack
 
 from aiuna.content.data import Data
-from transf.absdata import AbsData
-
-
 class OkaSt(Storage):
     """se data já existir, não tenta criar post!"""
 

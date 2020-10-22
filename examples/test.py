@@ -64,7 +64,7 @@ print("byuuid", byuuid)
 
 uuid = "ĹЇЖȡfĭϹƗͶэգ8Ƀű"
 data = Pickle().fetch(uuid)
-print("dddddddddddd", data.fields)
+print("dddddddddddd", data.field_funcs_m)
 storage = MySQL(db="user:senha@143.107.183.114/base")
 # storage.store(data)
 print("------------", data)

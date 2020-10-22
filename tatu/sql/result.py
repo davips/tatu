@@ -22,11 +22,12 @@
 
 class Result:
     """Magic class to handle calls to both connection and cursor."""
-    def __init__(self, conn_or_cursor):
-        self.conn_or_cursor = conn_or_cursor
+    def __init__(self, conn, cursor):
+        self.conn = conn
+        self.cursor = cursor
 
     def __getattr__(self, item):
         if item == "commit":
-            affected = self.conn_or_cursor.commit()
-            return lambda: affected
-        return getattr(self.conn_or_cursor, item)
+            self.conn.commit()
+            return lambda: self.cursor.rowcount
+        return getattr(self.cursor, item)

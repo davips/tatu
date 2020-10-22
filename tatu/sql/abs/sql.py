@@ -20,10 +20,13 @@
 #
 import warnings
 from abc import abstractmethod, ABC
+from sqlite3 import IntegrityError
 
 from aiuna.compression import unpack
 from cruipto.uuid import UUID
 from tatu.sql.abs.sqlreadonly import SQLReadOnly
+from tatu.sql.result import Result
+from tatu.storage import LockedEntryException, DuplicateEntryException
 from transf.customjson import CustomJSONEncoder
 
 
@@ -34,20 +37,43 @@ class SQL(SQLReadOnly, ABC):
     def _delete_data(self, id):
         return 1 == self.write(f"delete from data where id=?", [id]).commit()
 
-    def _lock_(self, id):
-        # Placeholder values: identitystep/'3oawXk8ZTPtS5DBsghkFNnz' and rootparent/'00000000000000000000001'
-        sql = f"insert into data values (null,'?','3oawXk8ZTPtS5DBsghkFNnz',null,'00000000000000000000001',true,{self._now_function()})", [id]
-        return 1 == self.write(sql).commit()
+    def _handle_integrity_error(self, id, sql, args):
+        try:
+            r = self.write(sql, args).commit()
+            return 1 == r
+        except IntegrityError as e:
+            if "r" in self.read("select 1 as r from data where id=? and locked=true", [id]).fetchone():
+                raise LockedEntryException(id)
+            else:
+                raise DuplicateEntryException(id)
 
-    # def _putdata_(self, **row):
-    #     qmarks = ",".join(["?"] * len(row))
-    #     self.query(f"INSERT INTO data ({','.join(row.keys())}, t) VALUES ({qmarks}, {self._now_function()})", list(row.values()))
-    #
+    def _lock_(self, id, ignoredup=False):
+        # Placeholder values: step=identity and parent=own-id
+        sql = f"insert {'or ignore' if ignoredup else ''} into data values (null,?,'3oawXk8ZTPtS5DBsghkFNnz',null,false,?,true)"
+        return self._handle_integrity_error(id, sql, [id, id])
+
+    def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
+        sql = f"INSERT {'or ignore' if ignoredup else ''} INTO data values (null,?,?,?,?,?,?)"
+        return self._handle_integrity_error(id, sql, [id, step, inn, stream, parent, locked])
+
+    def _putfields_(self, rows, ignoredup=False):
+        r = self.write_many(rows.values(), "field").commit()
+        return 1 == r
+
+    def _putcontent_(self, id, value, ignoredup=False):
+        r = self.write(f"INSERT {'or ignore' if ignoredup else ''} INTO content VALUES (?,?)", [id, value]).commit()
+        return 1 == r
+
+    def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
+        configid = UUID(config.encode()).id
+        # ALmost never two steps will have the same config, unless it is too short and worthless to avoid the extra insert attempt.
+        self.write(f"INSERT or ignore INTO config VALUES (?,?)", [configid, config])
+        r = self.write(f"INSERT {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)", [id, name, path, configid, dump]).commit()
+        return 1 == r
+
     # def _putcontent_(self, id, value):
     #     self.query(f"INSERT INTO content VALUES (NULL, ?, ?)", [id, value])
     #
-    # def _putstep_(self, id, name, path, config, dump=None):
-    #     self.query(f"INSERT INTO step VALUES (NULL, ?, ?, ?, ?, ?)", [id, name, path, config, dump])
     #
     # def _store_(self, data: Data, check_dup=True):
     #     uuid = data.uuid
@@ -219,21 +245,7 @@ class SQL(SQLReadOnly, ABC):
     #     except Exception as e:
     #         # print('Couldn\'t close database, but that\'s ok...', e)
     #         pass
-    #
-    # @staticmethod
-    # def _interpolate(sql, lst0):
-    #     lst = [str(w)[:100] for w in lst0]
-    #     zipped = zip(sql.replace("?", '"?"').split("?"), map(str, lst + [""]))
-    #     return "".join(list(sum(zipped, ()))).replace('"None"', "NULL")
-    #
-    # def insert_many(self, list_of_tuples, table):
-    #     sql = f"insert or ignore INTO {table} VALUES(NULL, ?, ?)"
-    #     from tatu.sql.mysql import MySQL
-    #     if isinstance(self, MySQL):
-    #         sql = sql.replace("?", "%s")
-    #         sql = sql.replace("insert or ignore", "insert ignore")
-    #     self.cursor.executemany(sql, list_of_tuples)
-    #
+
     # def _update_remote_(self, storage):
     #     stid = storage.id
     #
@@ -274,5 +286,15 @@ class SQL(SQLReadOnly, ABC):
     #             self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
 
     def write(self, sql, args=[], cursor=None):
-        self._query(sql, args, cursor)
-        return self.connection
+        self.query2(sql, args, cursor)
+        return Result(self.connection, cursor or self.cursor)
+
+    def write_many(self, list_of_tuples, table, cursor=None):
+        cursor = cursor or self.cursor
+        sql = f"insert or ignore INTO {table} VALUES({('?,' * len(list_of_tuples[0]))[:-1]})"
+        from tatu.sql.mysql import MySQL
+        if isinstance(self, MySQL):
+            sql = sql.replace("?", "%s")
+            sql = sql.replace("insert or ignore", "insert ignore")
+        cursor.executemany(sql, list_of_tuples)
+        return Result(self.connection, cursor)

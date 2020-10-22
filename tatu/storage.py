@@ -19,17 +19,14 @@
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import threading
 from abc import ABC, abstractmethod
 from functools import reduce
-from multiprocessing import JoinableQueue, Queue
-from queue import Empty
-from typing import Optional, List, Union
 
 from aiuna.content.data import Data
 from tatu.sql.abs.mixin.thread import asThread
-from transf.absdata import AbsData
 from transf.mixin.identification import withIdentification
+from transf.noop import NoOp
+from transf.step import Step
 
 
 class Storage(asThread, withIdentification, ABC):
@@ -39,62 +36,201 @@ class Storage(asThread, withIdentification, ABC):
      SQLite, remote/local MongoDB, MySQL server, pickled or even CSV files.
     """
 
-    def fetch(self, data, lock=False, recursive=True):
+    def lazyfetch(self, data, lock=False):  # , recursive=True):
+        # lst = []
+        print("Fetching...", data.id)
+        # while True:
+        ret = self.getdata(data.id)
+        if ret is None:
+            if lock and not self.lock(data.id):
+                raise Exception("Could not lock data:", data.id)
+            return
+
+        # Build a lazy Data object
+        kwargs = {"step": lambda: self.getstep(ret["step"])}
+        if ret["inner"]:
+            kwargs["inner"] = lambda: self.lazyfetch(ret["inner"])
+        if ret["stream"]:
+            kwargs["stream"] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
+        for field in ret["fields"]:
+            kwargs[field] = (lambda f: lambda: self.getfield(f))(field)
+
+        # Call each lambda by a friendly name.
+        for item in kwargs:
+            kwargs[item].__name__ = "_" + ret[item] + "_from_storage_" + self.id
+
+        return Data(data.id, ret["uuids"], **kwargs)
+
+        #     print("appendinggggggggg")
+        #     lst.append(output)
+        #     if not recursive or not data.hasinner:
+        #         break
+        #     data = output.inner
+        #     print(data)
+        #     print(type(data))
+        #     print('TTTTTTTTTTTTTTT')
+        #     print('')
+        #
+        #     # Task is complete if first inner was already built (e.g. coming from Pickle).
+        #     if isinstance(data, Data):
+        #         return output
+        # print("       ...fetched!", [d.id for d in lst])
+        # return reduce(lambda inner, outer: outer.update([], inner=inner), reversed(lst))
+
+    def lazystore(self, data: Data, ignoredup=False):
+        """
+        # The sequence of queries is planned to minimize traffic and CPU load,
+        # otherwise it would suffice to just send 'insert or ignore' of dumps.
+
+        Parameters
+        ----------
+        data
+            Data object to store.
+        check_dup
+            Whether to waste time checking duplicates
+
+        Returns
+        -------
+        List of inserted (or hoped to be inserted for threaded storages) Data ids (only meaningful for Data objects with inner)
+
+        Exception
+        ---------
+        DuplicateEntryException
+        :param ignoredup:
+        :param data:
+        :param check_dup:
+        :param recursive:
+        """
+        if not ignoredup and self.hasdata(data.id):
+            raise DuplicateEntryException(data.id)
+
+        # Embed lazy storers inside the Data object.
         lst = []
-        while data is not None:
-            if lock:
-                if not self.lock(data.id):
-                    raise Exception("Could not lock data:", id)
-parei aqui
-            output = self.getdata(data.id)
+        while True:
+            # Step.
+            if not self.hasstep(data.step_uuid.id):
+                step = data.step
+                self.putstep(step.id, step.name, step.path, step.config_json)
 
-            if output is None or not (output.inner is None or isinstance(output.inner, str)):
-                # Task complete if None or if inner is already build (e.g. coming from Pickle).
-                return output
+            # Fields.
+            fields = {}
+            for field, field_uuid in data.uuids.items():
+                if field_uuid in self.missing(data.uuids.values()):
+                    def func(f):
+                        def lamb():
+                            self.putcontent(f, data[f])
+                            return data[f]
 
-            lst.append(output)
-            if not recursive:
+                        return lamb
+
+                    fields[field] = func(field)
+                    fields[field].__name__ = "_" + field_uuid + "_to_storage_" + self.id
+            lst.append(data.update(NoOp, **fields))
+            if not data.hasinner:
                 break
-            data = output.inner
+            data = data.inner
 
-        # reconstruct lineage
-        # if data is None:   <- nao embro o motivo de por isso errado aqui
-        #     return None
-        return reduce(lambda inner, outer: outer.update([], inner=inner), reversed(lst))
+        def f(d):
+            # We assume it is faster to do a single insertignore than select + insert, hence ignoredup=True here.
+            if self.putdata(d.id, d.step_uuid.id, d.inner and d.inner.id, d.hasstream, d.parent_uuid.id, False, ignoredup=True):
+                self.putfields([(fuuid.id, data.id, fname) for fname, fuuid in data.uuids.items()])
 
-    def hasdata(self, id, check_fields=False):
-        """ check_fields: whether to assess the existence of fields, instead of just the data row"""
+        _ = [f(d) for d in reversed(lst)]
+        return lst[0]
+
+    def fetchstep(self, id):
+        """Return a Step object."""
+        print("Fetching step...", id)
+        r = self.getstep(id)
+        print("       ...fetched step?", id, bool(r))
+        return Step.fromdict({"id": id, "desc": r})
+
+    def hasdata(self, id, include_empty=False):
+        """ include_empty: whether to assess the existence of fields, instead of just the data row"""
         return self.do(self._hasdata_, locals(), wait=True)
 
     def getdata(self, id):
-        return self.do(self._getdata_, locals(), wait=True)
+        """Return a info for a Data object."""
+        print("Getting...", id)
+        r = self.do(self._getdata_, locals(), wait=True)
+        print("       ...got?", id, bool(r))
+        return r
+
+    def getstep(self, id):
+        """Return info for a Step object."""
+        print("Getting step...", id)
+        r = self.do(self._getstep_, locals(), wait=True)
+        print("       ...got step?", id, bool(r))
+        return r
 
     def hasstep(self, id):
         return self.do(self._hasstep_, locals(), wait=True)
+
+    def hasfield(self, id):
+        return self.do(self._hasfield_, locals(), wait=True)
+
+    def missing(self, ids):
+        return self.do(self._missing_, locals(), wait=True)
 
     def delete_data(self, data: Data, check_existence=True, recursive=True):
         """Remove Data object, but keeps contents of its fields (even if not used by anyone else).
 
         Returns list of deleted Data object uuids
         """
+        print("Deleting...", data.id)
         ids = []
-        while data:
+        while True:
             id = data.id
-            if check_existence and not self.hasdata(id):
+            if not self.do(self._delete_data, {"id": id}, wait=True) and check_existence:
                 raise Exception("Cannot delete, data does not exist:", id)
-            if not self.do(self._delete_data, {"data": id}, wait=True):
-                raise Exception("Could not delete data:", id)
             ids.append(id)
-            if not recursive:
+            if not recursive or not data.hasinner:
                 break
             data = data.inner
+        print("         ...deleted!", ids)
         return ids
 
     def lock(self, id, check_existence=True):
-        """Returns whether it succeeded."""
+        """Return whether it succeeded."""
+        print("Locking...", id)
         if check_existence and self.hasdata(id):
-                raise Exception("Cannot lock, data already exists:", id)
-        return self.do(self._lock_, {"id": id}, wait=True)
+            raise Exception("Cannot lock, data already exists:", id)
+        r = self.do(self._lock_, {"id": id}, wait=True)
+        print("    ...locked?", id, bool(r))
+        return r
+
+    def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
+        """Return whether it succeeded."""
+        dic = locals().copy()
+        del dic["check_existence"]
+        print("Putting...", id)
+        r = self.do(self._putdata_, dic, wait=True)
+        print("    ...put?", id, bool(r))
+        return r
+
+    def putcontent(self, id, value, ignoredup=False):
+        """Return whether it succeeded."""
+        dic = locals().copy()
+        print("Putting...", id)
+        r = self.do(self._putcontent_, dic, wait=True)
+        print("    ...put?", id, bool(r))
+        return r
+
+    def putfields(self, rows, ignoredup=False):
+        """Return whether it succeeded."""
+        dic = locals().copy()
+        print("Putting...", rows)
+        r = self.do(self._putfields_, dic, wait=True)
+        print("    ...put?", rows, bool(r))
+        return r
+
+    def putstep(self, id, name, path, config, dump=None, ignoredup=False):
+        """Return whether it succeeded."""
+        dic = locals().copy()
+        print("Putting...", id)
+        r = self.do(self._putstep_, dic, wait=True)
+        print("    ...put?", id, bool(r))
+        return r
 
     # ================================================================================
     #     @abstractmethod
@@ -223,12 +359,6 @@ parei aqui
     #         else:
     #             self._unlock_(data)
     #
-    #     def _name_(self):
-    #         return self.__class__.__name__
-    #
-    #     def _context_(self):
-    #         return self.__class__.__module__
-    #
     #     def update_remote(self, storage):
     #         """Sync, sending Data objects from this storage to the provided one."""
     #         if self.threaded:
@@ -287,28 +417,15 @@ parei aqui
     #         return output
     #
     #
-    # class UnlockedEntryException(Exception):
-    #     """No locked entry for this input data."""
-    #
-    #
-    # class LockedEntryException(Exception):
-    #     """Another node is/was generating output data for this input data."""
     #
     #
     # class FailedEntryException(Exception):
     #     """This input data has already failed before."""
     #
-    #
-    # class DuplicateEntryException(Exception):
-    #     """This input data has already been inserted before."""
-    #
-    #
-    # class MissingEntryException(Exception):
-    #     """This input data is missing."""
 
     # ================================================================================
     @abstractmethod
-    def _hasdata_(self, id, check_fields=False):
+    def _hasdata_(self, id, include_empty=True):
         pass
 
     @abstractmethod
@@ -320,6 +437,10 @@ parei aqui
         pass
 
     @abstractmethod
+    def _hasfield_(self, id):
+        pass
+
+    @abstractmethod
     def _delete_data(self, id):
         """Return whether it succeeded."""
         pass
@@ -327,3 +448,41 @@ parei aqui
     @abstractmethod
     def _lock_(self, id):
         pass
+
+    @abstractmethod
+    def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
+        pass
+
+    @abstractmethod
+    def _putfields_(self, rows, ignoredup=False):
+        pass
+
+    @abstractmethod
+    def _putcontent_(self, id, value, ignoredup=False):
+        pass
+
+    @abstractmethod
+    def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
+        pass
+
+    def _name_(self):
+        return self.__class__.__name__
+
+    def _context_(self):
+        return self.__class__.__module__
+
+
+class UnlockedEntryException(Exception):
+    """No locked entry for this input data."""
+
+
+class LockedEntryException(Exception):
+    """Another node is/was generating output data for this input data."""
+
+
+class DuplicateEntryException(Exception):
+    """This input data has already been inserted before."""
+
+
+class MissingEntryException(Exception):
+    """This input data is missing."""

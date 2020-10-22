@@ -69,8 +69,7 @@ class asThread(ABC):
             del info["self"]
 
         if self.threaded:
-            info["func"] = func.__name__
-            self.queue.put(info)
+            self.queue.put({"func": func.__name__, "info": info, "wait": wait})
             if wait:
                 return self._waitresult()
         else:
@@ -111,7 +110,7 @@ class asThread(ABC):
 
                 # Handle job from the input queue...
                 try:
-                    ret = getattr(self, f"_{job['func']}_")(**job["info"])
+                    ret = getattr(self, job['func'])(**job["info"])
                     if job["wait"]:
                         self.outqueue.put(ret)
                         self.outqueue.join()
