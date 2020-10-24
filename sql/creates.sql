@@ -35,7 +35,7 @@ create table if not exists data (
     inn char(23),
     stream boolean not null,
     parent char(23) not null,
-    locked boolean not null,
+    locked boolean,
     unique(step, parent),
     FOREIGN KEY (step) REFERENCES step(id),
     FOREIGN KEY (inn) REFERENCES data(id),

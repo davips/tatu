@@ -18,16 +18,14 @@
 #      You should have received a copy of the GNU General Public License
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
-import warnings
-from abc import abstractmethod, ABC
+from abc import ABC
 from sqlite3 import IntegrityError
 
-from aiuna.compression import unpack
 from cruipto.uuid import UUID
 from tatu.sql.abs.sqlreadonly import SQLReadOnly
 from tatu.sql.result import Result
 from tatu.storage import LockedEntryException, DuplicateEntryException
-from transf.customjson import CustomJSONEncoder
+from transf.noop import NoOp
 
 
 class SQL(SQLReadOnly, ABC):
@@ -49,30 +47,40 @@ class SQL(SQLReadOnly, ABC):
 
     def _lock_(self, id, ignoredup=False):
         # Placeholder values: step=identity and parent=own-id
-        sql = f"insert {'or ignore' if ignoredup else ''} into data values (null,?,'3oawXk8ZTPtS5DBsghkFNnz',null,false,?,true)"
+        sql = f"insert {'or ignore' if ignoredup else ''} into data values (null,?,'{NoOp().id}',null,false,?,true)"
         return self._handle_integrity_error(id, sql, [id, id])
 
+    def _unlock_(self, id):
+        self.query2("SET FOREIGN_KEY_CHECKS=0")
+        try:
+            self.query2(f"delete from data where id=? and locked=true", [id])
+            r = self.cursor.rowcount
+        finally:
+            self.query2("SET FOREIGN_KEY_CHECKS=1")
+            self.commit()
+        return r == 1
+
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
-        sql = f"INSERT {'or ignore' if ignoredup else ''} INTO data values (null,?,?,?,?,?,?)"
+        sql = f"insert {'or ignore' if ignoredup else ''} INTO data values (null,?,?,?,?,?,?)"
         return self._handle_integrity_error(id, sql, [id, step, inn, stream, parent, locked])
 
     def _putfields_(self, rows, ignoredup=False):
-        r = self.write_many(rows.values(), "field").commit()
-        return 1 == r
+        r = self.write_many(rows, "field").commit()
+        return r > 0
 
     def _putcontent_(self, id, value, ignoredup=False):
-        r = self.write(f"INSERT {'or ignore' if ignoredup else ''} INTO content VALUES (?,?)", [id, value]).commit()
+        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO content VALUES (?,?)", [id, value]).commit()
         return 1 == r
 
     def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
         configid = UUID(config.encode()).id
         # ALmost never two steps will have the same config, unless it is too short and worthless to avoid the extra insert attempt.
-        self.write(f"INSERT or ignore INTO config VALUES (?,?)", [configid, config])
-        r = self.write(f"INSERT {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)", [id, name, path, configid, dump]).commit()
+        self.write(f"insert or ignore INTO config VALUES (?,?)", [configid, config])
+        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)", [id, name, path, configid, dump]).commit()
         return 1 == r
 
     # def _putcontent_(self, id, value):
-    #     self.query(f"INSERT INTO content VALUES (NULL, ?, ?)", [id, value])
+    #     self.query(f"insert INTO content VALUES (NULL, ?, ?)", [id, value])
     #
     #
     # def _store_(self, data: Data, check_dup=True):
@@ -291,10 +299,16 @@ class SQL(SQLReadOnly, ABC):
 
     def write_many(self, list_of_tuples, table, cursor=None):
         cursor = cursor or self.cursor
-        sql = f"insert or ignore INTO {table} VALUES({('?,' * len(list_of_tuples[0]))[:-1]})"
-        from tatu.sql.mysql import MySQL
-        if isinstance(self, MySQL):
-            sql = sql.replace("?", "%s")
-            sql = sql.replace("insert or ignore", "insert ignore")
-        cursor.executemany(sql, list_of_tuples)
+        sql = f"{self._insert_ignore} INTO {table} VALUES({('?,' * len(list_of_tuples[0]))[:-1]})"
+
+        newlist_of_tuples = []
+        for row in list_of_tuples:
+            newrow = [int(c) if isinstance(c, bool) else c for c in row]
+            newlist_of_tuples.append(newrow)
+            if self.debug:
+                msg = self._interpolate(sql, newrow)
+                print(self.name + ":\t>>>>> " + msg)
+
+        sql = sql.replace("?", self._placeholder)
+        cursor.executemany(sql, newlist_of_tuples)
         return Result(self.connection, cursor)

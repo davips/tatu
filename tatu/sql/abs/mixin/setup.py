@@ -20,22 +20,49 @@
 #
 from abc import abstractmethod, ABC
 
+from cruipto.decorator import classproperty
+from cruipto.uuid import UUID
+from transf.noop import NoOp
+
 
 class withSetup(ABC):
-    @abstractmethod
-    def _auto_incr(self):
-        pass
-
     @abstractmethod
     def query2(self, x):
         pass
 
+    @classmethod
     @abstractmethod
-    def _now_function(self):
+    @classproperty
+    def _now_function(cls):
         pass
 
+    @classmethod
     @abstractmethod
-    def _keylimit(self):
+    @classproperty
+    def _keylimit(cls):
+        pass
+
+    @classmethod
+    @abstractmethod
+    @classproperty
+    def _auto_incr(cls):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def _on_conflict(cls, cols):
+        pass
+
+    @classmethod
+    @classproperty
+    @abstractmethod
+    def _insert_ignore(cls):
+        pass
+
+    @classmethod
+    @abstractmethod
+    @classproperty
+    def _placeholder(cls):
         pass
 
     def _setup(self):
@@ -56,7 +83,6 @@ class withSetup(ABC):
         )
 
         # Table with values for parameters of Step objects. Insert the empty config as the fisrt one.
-        # '04fmE1EWKIsDKlrhOf6vky3' = UUID("{}".encode()).id
         self.query2(
             f"""
             create table if not exists config (
@@ -64,14 +90,14 @@ class withSetup(ABC):
                 params text NOT NULL
             )"""
         )
-        self.query2(f'CREATE INDEX if not exists idx1 ON config (params{self._keylimit()})')
-        self.query2("insert into config values ('04fmE1EWKIsDKlrhOf6vky3', '{}')")
+        self.query2(f'CREATE INDEX if not exists idx1 ON config (params{self._keylimit})')
+        self.query2(f"insert into config values ('{UUID(b'{}').id}', " + "'{}')")
 
         # Table with steps. The mythical NoOp step that created the Root data is inserted as the first one (due to constraint issues).
         self.query2(
             f"""
             create table if not exists step (
-                n integer NOT NULL primary key {self._auto_incr()},
+                n integer NOT NULL primary key {self._auto_incr},
                 id char(23) NOT NULL UNIQUE,
                 name char(60) NOT NULL,
                 path varchar(250) NOT NULL,
@@ -84,19 +110,19 @@ class withSetup(ABC):
         self.query2(f'CREATE INDEX if not exists idx2 ON step (id)')
         self.query2(f'CREATE INDEX if not exists idx3 ON step (name)')
         self.query2(f'CREATE INDEX if not exists idx4 ON step (path)')
-        self.query2("insert into step values (null, '3oawXk8ZTPtS5DBsghkFNnz', 'NoOp', 'akangatu.noop', '04fmE1EWKIsDKlrhOf6vky3', null)")
+        self.query2(f"insert into step values (null, '{NoOp().id}', '{NoOp().name}', '{NoOp().context}', '{UUID(b'{}').id}', null)")
 
         # Table data.
         self.query2(
             f"""
             create table if not exists data (
-                n integer NOT NULL primary key {self._auto_incr()},
+                n integer NOT NULL primary key {self._auto_incr},
                 id char(23) NOT NULL UNIQUE,
                 step char(23) NOT NULL,
                 inn char(23),
                 stream boolean not null,
                 parent char(23) not null,
-                locked boolean not null,
+                locked boolean,
                 unique(step, parent),
                 FOREIGN KEY (step) REFERENCES step(id),
                 FOREIGN KEY (inn) REFERENCES data(id),
@@ -106,7 +132,7 @@ class withSetup(ABC):
         self.query2(f'CREATE INDEX if not exists idx5 ON data (id)')
         self.query2(f'CREATE INDEX if not exists idx6 ON data (step)')
         self.query2(f'CREATE INDEX if not exists idx7 ON data (parent)')
-        self.query2(f"insert into data values (null, '00000000000000000000001', '3oawXk8ZTPtS5DBsghkFNnz', null, false, '00000000000000000000001', false)")
+        self.query2(f"insert into data values (null, '{UUID().id}', '{UUID.identity.id}', null, false, '{UUID().id}', false)")
 
         self.query2(
             f"""

@@ -20,12 +20,13 @@
 #
 
 from abc import ABC, abstractmethod
-from functools import reduce
 
+from aiuna.compression import unpack, pack
 from aiuna.content.data import Data
+from aiuna.content.root import Root
+from linalghelper import islazy
 from tatu.sql.abs.mixin.thread import asThread
 from transf.mixin.identification import withIdentification
-from transf.noop import NoOp
 from transf.step import Step
 
 
@@ -48,41 +49,29 @@ class Storage(asThread, withIdentification, ABC):
                 raise Exception("Could not lock data:", data.id)
             return
 
-        # Build a lazy Data object
-        step_func = lambda: self.getstep(ret["step"])
-        step_func.name = f"_{ret['step']}_from_storage_" + self.id
+        # Build a lazy Data object  TODO essa parte só serve qnd temos apenas o data uuid
+        # step_func = lambda: self.getstep(ret["step"])
+        # step_func.name = f"_{ret['step']}_from_storage_" + self.id
+        #
+        # step_funcs = lambda: self.gethistory(ret["parent"])
+        # step_funcs.name = f"_history_from_storage_" + self.id
+
         fields = {}
-        for field in data.field_funcs_m:
+        for field in ret["uuids"]:
             if field == "inner":
                 fields[field] = lambda: self.lazyfetch(ret["inner"])
             elif field == "stream":
                 fields[field] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
             else:
-                fields[field] = (lambda f: lambda: self.getfield(f))(field)
+                fields[field] = (lambda name: lambda: unpack(self.getfields(data.id, [name])[0]))(field)
 
             if field == "changed":
                 fields[field] = data.changed
             else:
                 # Call each lambda by a friendly name.
-                fields[field].__name__ = "_" + ret[field] + "_from_storage_" + self.id
+                fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
-        return Data(data.uuid, ret["uuids"], step_func, **fields)
-
-        #     print("appendinggggggggg")
-        #     lst.append(output)
-        #     if not recursive or not data.hasinner:
-        #         break
-        #     data = output.inner
-        #     print(data)
-        #     print(type(data))
-        #     print('TTTTTTTTTTTTTTT')
-        #     print('')
-        #
-        #     # Task is complete if first inner was already built (e.g. coming from Pickle).
-        #     if isinstance(data, Data):
-        #         return output
-        # print("       ...fetched!", [d.id for d in lst])
-        # return reduce(lambda inner, outer: outer.update([], inner=inner), reversed(lst))
+        return Data(data.uuid, ret["uuids"], data.history, **fields)
 
     def lazystore(self, data: Data, ignoredup=False):
         """
@@ -113,34 +102,50 @@ class Storage(asThread, withIdentification, ABC):
 
         # Embed lazy storers inside the Data object.
         lst = []
+
+        def func(held_data, name, field_funcs, puts):
+            def lamb():
+                for k, v in field_funcs.items():
+                    if islazy(v):
+                        v = v()
+                    held_data.field_funcs_m[k] = v  # The old value may not be lazy, but the new one can be due to this very lazystore.
+                    id = held_data.uuids[k].id
+                    if id in puts:
+                        self.putcontent(id, pack(v))
+                self.putfields([(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items()])
+                return held_data.field_funcs_m[name]
+
+            return lamb
+
         while True:
-            # Step.
-            if not self.hasstep(data.step_uuid.id):
-                step = data.step
-                self.putstep(step.id, step.name, step.path, step.config_json)
-
             # Fields.
-            fields = {}
-            for field, field_uuid in data.uuids.items():
-                if field_uuid in self.missing(data.uuids.values()):
-                    def func(f):
-                        def lamb():
-                            self.putcontent(f, data[f])
-                            return data[f]
+            field_funcs_copy = data.field_funcs_m.copy()
+            missing = self.missing([u.id for u in data.uuids.values()])
+            for field in data.field_funcs_m:
+                data.field_funcs_m[field] = func(data, field, field_funcs_copy, missing)
+                data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
+                print("!!!!!!!!!!!!!!!!    missing", field, data.field_funcs_m[field])
 
-                        return lamb
-
-                    fields[field] = func(field)
-                    fields[field].__name__ = "_" + field_uuid + "_to_storage_" + self.id
-            lst.append(data.update(NoOp(), **fields))
+            lst.append(data)
             if not data.hasinner:
                 break
             data = data.inner
 
-        for d in reversed(lst):
-            # We assume it is faster to do a single insertignore than select+insert, hence ignoredup=True here.
-            if self.putdata(d.id, d.step_uuid.id, d.inner and d.inner.id, d.hasstream, d.parent_uuid.id, False, ignoredup=True):
-                self.putfields([(fuuid.id, data.id, fname) for fname, fuuid in data.uuids.items()])
+        for i, d in reversed(list(enumerate(lst))):
+            if i == 0:
+                self.unlock(d.id)
+
+            # History.
+            datauuid, ok = Root.uuid, False
+            for step in d.history:
+                if not self.hasstep(step.id):
+                    self.putstep(step.id, step.name, step.context, step.config_json)
+
+                parent_uuid = datauuid
+                datauuid = datauuid * step.uuid
+                # Here, locked=NULL means 'placeholder', which can be updated in the future if the same data happens to be truly stored.
+                # We assume it is faster to do a single insertignore than select+insert, hence ignoredup=True here.
+                self.putdata(datauuid.id, step.id, None, False, parent_uuid.id, None, ignoredup=True)
 
         return lst[0]
 
@@ -166,6 +171,13 @@ class Storage(asThread, withIdentification, ABC):
         """Return info for a Step object."""
         print("Getting step...", id)
         r = self.do(self._getstep_, locals(), wait=True)
+        print("       ...got step?", id, bool(r))
+        return r
+
+    def getfields(self, id, names):
+        """Return info for a field."""
+        print("Getting step...", id)
+        r = self.do(self._getfields_, locals(), wait=True)
         print("       ...got step?", id, bool(r))
         return r
 
@@ -205,37 +217,41 @@ class Storage(asThread, withIdentification, ABC):
         print("    ...locked?", id, bool(r))
         return r
 
+    def unlock(self, id, check_success=True):
+        """Return whether it succeeded."""
+        print("Unlocking...", id)
+        r = self.do(self._unlock_, {"id": id}, wait=True)
+        if check_success and not r:
+            raise Exception("Cannot lock, data does not exist:", id)
+        print("    ...unlocked?", id, bool(r))
+        return r
+
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
         """Return whether it succeeded."""
-        dic = locals().copy()
-        del dic["check_existence"]
-        print("Putting...", id)
-        r = self.do(self._putdata_, dic, wait=True)
-        print("    ...put?", id, bool(r))
+        print("Putting data...", id)
+        r = self.do(self._putdata_, locals(), wait=True)
+        print("    ...putdata?", id, bool(r))
         return r
 
     def putcontent(self, id, value, ignoredup=False):
         """Return whether it succeeded."""
-        dic = locals().copy()
-        print("Putting...", id)
-        r = self.do(self._putcontent_, dic, wait=True)
-        print("    ...put?", id, bool(r))
+        print("Putting content...", id)
+        r = self.do(self._putcontent_, locals(), wait=True)
+        print("    ...putcontent?", id, bool(r))
         return r
 
     def putfields(self, rows, ignoredup=False):
         """Return whether it succeeded."""
-        dic = locals().copy()
-        print("Putting...", rows)
-        r = self.do(self._putfields_, dic, wait=True)
-        print("    ...put?", rows, bool(r))
+        print("Putting fields...", rows)
+        r = self.do(self._putfields_, locals(), wait=True)
+        print("    ...put fields?", bool(r), rows)
         return r
 
     def putstep(self, id, name, path, config, dump=None, ignoredup=False):
         """Return whether it succeeded."""
-        dic = locals().copy()
-        print("Putting...", id)
-        r = self.do(self._putstep_, dic, wait=True)
-        print("    ...put?", id, bool(r))
+        print("Putting step...", id)
+        r = self.do(self._putstep_, locals(), wait=True)
+        print("    ...put step?", id, bool(r))
         return r
 
     # ================================================================================
@@ -456,6 +472,10 @@ class Storage(asThread, withIdentification, ABC):
         pass
 
     @abstractmethod
+    def _unlock_(self, id):
+        pass
+
+    @abstractmethod
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
         pass
 
@@ -469,6 +489,18 @@ class Storage(asThread, withIdentification, ABC):
 
     @abstractmethod
     def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
+        pass
+
+    @abstractmethod
+    def _getstep_(self, id):
+        pass
+
+    @abstractmethod
+    def _getfields_(self, id, names):
+        pass
+
+    @abstractmethod
+    def _missing_(self, ids):
         pass
 
     def _name_(self):

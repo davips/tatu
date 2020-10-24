@@ -24,7 +24,9 @@ import socket
 
 import pymysql
 import pymysql.cursors
+from pymysql.constants import CLIENT
 
+from cruipto.decorator import classproperty
 from cruipto.uuid import UUID
 from tatu.sql.abs.sql import SQL
 
@@ -64,18 +66,18 @@ class MySQL(SQL):
             password=self.password,
             charset="utf8",
             cursorclass=pymysql.cursors.DictCursor,
+            # client_flag=CLIENT.MULTI_STATEMENTS
         )
-        # self.connection.client_flag &= pymysql.constants.CLIENT.MULTI_STATEMENTS
-        self.connection.autocommit(True)
+        self.connection.client_flag &= pymysql.constants.CLIENT.MULTI_STATEMENTS
+        self.connection.autocommit(False)
 
         if self.debug:
             print("getting cursor...")
         self.cursor = self.connection.cursor()
-atualizar queries chamadas, incluindo commit
 
         # Create db if it doesn't exist yet.
         self.query2(f"SHOW DATABASES LIKE '{self.db}'")
-        setup = self.get_one() is None
+        setup = self.cursor.fetchone() is None
         if setup:
             if self.debug:
                 print("creating database", self.db, "on", self.database, "...")
@@ -98,24 +100,26 @@ atualizar queries chamadas, incluindo commit
 
         return self
 
-    @staticmethod
-    def _now_function():
+    @classproperty
+    def _now_function(cls):
         return "now()"
 
-    @staticmethod
-    def _auto_incr():
-        return "AUTO_INCREMENT"
-
-    @staticmethod
-    def _keylimit():
+    @classproperty
+    def _keylimit(cls):
         return "(190)"
 
-    @staticmethod
-    def _on_conflict(fields=None):
+    @classproperty
+    def _auto_incr(cls):
+        return "AUTO_INCREMENT"
+
+    @classmethod
+    def _on_conflict(cls, cols):
         return "ON DUPLICATE KEY UPDATE"
 
-    def insert_ignore(self):
+    @classproperty
+    def _insert_ignore(cls):
         return "insert ignore"
 
-    def placeholder(self):
+    @classproperty
+    def _placeholder(cls):
         return "%s"

@@ -31,13 +31,13 @@ select * from data;
 
 -- self + ancestors
 WITH RECURSIVE cnt(id, parent) AS (VALUES('00000000000000000000012', '00000000000000000000091') UNION ALL 
-SELECT d.id, d.parent FROM cnt inner join data d ON cnt.parent=d.id and d.id<>d.parent) 
-SELECT id, parent FROM cnt;
+select d.id, d.parent FROM cnt inner join data d ON cnt.parent=d.id and d.id<>d.parent)
+select id, parent FROM cnt;
 
 -- self + children
 WITH RECURSIVE cnt(id, parent) AS (VALUES('00000000000000000000012', '00000000000000000000091') UNION ALL 
-SELECT d.id, d.parent FROM cnt inner join data d ON d.parent=cnt.id and d.id<>d.parent) 
-SELECT id, parent FROM cnt;
+select d.id, d.parent FROM cnt inner join data d ON d.parent=cnt.id and d.id<>d.parent)
+select id, parent FROM cnt;
 
 --1 ={
 --  91: {

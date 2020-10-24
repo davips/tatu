@@ -25,6 +25,7 @@ import sqlite3
 from typing import List
 
 from aiuna.content.data import Data
+from cruipto.decorator import classproperty
 from cruipto.uuid import UUID
 from tatu.sql.abs.sql import SQL
 class SQLite(SQL):
@@ -57,29 +58,26 @@ class SQLite(SQL):
             self._setup()
             self.commit()
 
-    def commit(self):
-        self.connection.commit()
-
-    @staticmethod
-    def _now_function():
+    @classproperty
+    def _now_function(cls):
         return "datetime()"
 
-    @staticmethod
-    def _auto_incr():
-        return "AUTOINCREMENT"
-
-    @staticmethod
-    def _keylimit():
+    @classproperty
+    def _keylimit(cls):
         return ""
 
-    @staticmethod
-    def _on_conflict(fields=""):
-        return f"ON CONFLICT{fields} DO UPDATE SET"
+    @classproperty
+    def _auto_incr(cls):
+        return "AUTOINCREMENT"
 
-    @property
-    def insert_ignore(self):
+    @classmethod
+    def _on_conflict(cls, cols):
+        return f"ON CONFLICT{cols} DO UPDATE SET"
+
+    @classproperty
+    def _insert_ignore(cls):
         return "insert or ignore"
 
-    @property
-    def placeholder(self):
+    @classproperty
+    def _placeholder(cls):
         return "?"

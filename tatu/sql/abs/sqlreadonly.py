@@ -32,9 +32,9 @@ class SQLReadOnly(Storage, withSetup, ABC):
     cursor = None
     read_only = True
 
-    def _hasdata_(self, id, include_empty=True):
+    def _hasdata_(self, id, include_empty=True):  # TODO checar lock null?
         if include_empty:
-            sql = f"select 1 from data where id=? limit 1"
+            sql = f"select 1 from data where id=?"
         else:
             # REMINDER Inner join ensures a Data row with fields.
             nonempty = f"select 1 from data d INNER JOIN field f ON d.id=f.data where d.id=? limit 1"
@@ -43,7 +43,7 @@ class SQLReadOnly(Storage, withSetup, ABC):
         return self.read(sql, [id, id]).fetchone() is not None
 
     def _getdata_(self, id, include_empty=True):
-        cols = "step,inn,stream,locked,name as field_name,content as field_id"
+        cols = "step,inn,stream,parent,locked,name as field_name,content as field_id"
         sql = f"select {cols} from data d {'left' if include_empty else 'inner'} join field f on d.id=f.data where d.id=?"
         r = self.read(sql, [id]).fetchall()
         if not r:
@@ -52,15 +52,20 @@ class SQLReadOnly(Storage, withSetup, ABC):
         for row in r:
             if row["locked"]:
                 raise Exception("Cannot get a locked Data object.")
-            uuids[row["field_name"]] = row["field_id"]
-        return {"uuids": uuids, "step": row["step"], "inner": row["inn"], "stream": row["stream"]}
+            if row["field_name"]:
+                uuids[row["field_name"]] = row["field_id"]
+        return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"], "stream": row["stream"]}
 
-    def _getstep(self, id):
+    def _getstep_(self, id):
         row = self.read("select name,path,params from step s inner join config c on s.id=c.step where s.id=?", [id]).fetchone()
         if row is None:
             return
         desc = {"name": row["name"], "path": row["path"], "config": row["params"]}
         return desc
+
+    def _getfields_(self, id, names):
+        sql = f"select value from field inner join content on content=id where data=? and name in ({('?,' * len(names))[:-1]})"
+        return [row["value"] for row in self.read(sql, [id] + names).fetchall()]  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
 
     def _hasstep_(self, id):
         return self.read(f"select 1 from step where id=?", [id]).fetchone() is not None
@@ -240,11 +245,12 @@ class SQLReadOnly(Storage, withSetup, ABC):
     def query2(self, sql, args=[], cursor=None):
         # TODO with / catch / finalize connection?
         cursor = cursor or self.cursor
+        args = [int(c) if isinstance(c, bool) else c for c in args]
+        sql = sql.replace("insert or ignore", self._insert_ignore)
         if self.debug:
             msg = self._interpolate(sql, args)
             print(self.name + ":\t>>>>> " + msg)
-        sql = sql.replace("?", self.placeholder)
-        sql = sql.replace("insert or ignore", self.insert_ignore)
+        sql = sql.replace("?", self._placeholder)
         # self.connection.ping(reconnect=True)
         return cursor.execute(sql, args)
 
@@ -253,3 +259,6 @@ class SQLReadOnly(Storage, withSetup, ABC):
         lst = [str(w)[:100] for w in lst0]
         zipped = zip(sql.replace("?", '"?"').split("?"), map(str, lst + [""]))
         return "".join(list(sum(zipped, ()))).replace('"None"', "NULL")
+
+    def commit(self):
+        self.connection.commit()
