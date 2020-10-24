@@ -36,6 +36,8 @@ class Storage(asThread, withIdentification, ABC):
      SQLite, remote/local MongoDB, MySQL server, pickled or even CSV files.
     """
 
+    # TODO (strict) fetch by uuid
+    # TODO (strict) store
     def lazyfetch(self, data, lock=False):  # , recursive=True):
         # lst = []
         print("Fetching...", data.id)
@@ -47,19 +49,24 @@ class Storage(asThread, withIdentification, ABC):
             return
 
         # Build a lazy Data object
-        kwargs = {"step": lambda: self.getstep(ret["step"])}
-        if ret["inner"]:
-            kwargs["inner"] = lambda: self.lazyfetch(ret["inner"])
-        if ret["stream"]:
-            kwargs["stream"] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
-        for field in ret["fields"]:
-            kwargs[field] = (lambda f: lambda: self.getfield(f))(field)
+        step_func = lambda: self.getstep(ret["step"])
+        step_func.name = f"_{ret['step']}_from_storage_" + self.id
+        fields = {}
+        for field in data.field_funcs_m:
+            if field == "inner":
+                fields[field] = lambda: self.lazyfetch(ret["inner"])
+            elif field == "stream":
+                fields[field] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
+            else:
+                fields[field] = (lambda f: lambda: self.getfield(f))(field)
 
-        # Call each lambda by a friendly name.
-        for item in kwargs:
-            kwargs[item].__name__ = "_" + ret[item] + "_from_storage_" + self.id
+            if field == "changed":
+                fields[field] = data.changed
+            else:
+                # Call each lambda by a friendly name.
+                fields[field].__name__ = "_" + ret[field] + "_from_storage_" + self.id
 
-        return Data(data.id, ret["uuids"], **kwargs)
+        return Data(data.uuid, ret["uuids"], step_func, **fields)
 
         #     print("appendinggggggggg")
         #     lst.append(output)
@@ -125,17 +132,16 @@ class Storage(asThread, withIdentification, ABC):
 
                     fields[field] = func(field)
                     fields[field].__name__ = "_" + field_uuid + "_to_storage_" + self.id
-            lst.append(data.update(NoOp, **fields))
+            lst.append(data.update(NoOp(), **fields))
             if not data.hasinner:
                 break
             data = data.inner
 
-        def f(d):
-            # We assume it is faster to do a single insertignore than select + insert, hence ignoredup=True here.
+        for d in reversed(lst):
+            # We assume it is faster to do a single insertignore than select+insert, hence ignoredup=True here.
             if self.putdata(d.id, d.step_uuid.id, d.inner and d.inner.id, d.hasstream, d.parent_uuid.id, False, ignoredup=True):
                 self.putfields([(fuuid.id, data.id, fname) for fname, fuuid in data.uuids.items()])
 
-        _ = [f(d) for d in reversed(lst)]
         return lst[0]
 
     def fetchstep(self, id):

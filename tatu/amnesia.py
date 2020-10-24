@@ -3,11 +3,10 @@ from typing import Optional, List
 from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from tatu.storage import Storage
-from transf.absdata import AbsData
 
 
 class Amnesia(Storage):
-    def _fetch_children_(self, data: Data) -> List[AbsData]:
+    def _fetch_children_(self, data: Data):
         raise Exception("(Pseudo)Storage Amnesia cannot retrieve children!")
 
     def __init__(self):
