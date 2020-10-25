@@ -43,6 +43,8 @@ class Storage(asThread, withIdentification, ABC):
     # TODO (strict) fetch by uuid
     # TODO (strict) store
     def lazyfetch(self, data, lock=False):  # , recursive=True):
+        """Fetch the data object fields on-demand.
+         data: uuid string or a (probably still not fully evaluated) Data object."""
         data_id = data if isinstance(data, str) else data.id
         # lst = []
         print("Fetching...", data_id)
@@ -81,7 +83,8 @@ class Storage(asThread, withIdentification, ABC):
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
     def lazystore(self, data: Data, ignoredup=False):
-        """
+        """Store all Data object fields as soon as one of them is evaluated.
+
         # The sequence of queries is planned to minimize traffic and CPU load,
         # otherwise it would suffice to just send 'insert or ignore' of dumps.
 
@@ -89,8 +92,8 @@ class Storage(asThread, withIdentification, ABC):
         ----------
         data
             Data object to store.
-        check_dup
-            Whether to waste time checking duplicates
+        ignore_dup
+            Whether to send the query anyway, ignoring errors due to already existent registries.
 
         Returns
         -------
