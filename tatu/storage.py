@@ -25,6 +25,7 @@ from aiuna.compression import unpack, pack
 from aiuna.content.data import Data
 from aiuna.content.root import Root
 from aiuna.history import History
+from cruipto.uuid import UUID
 from linalghelper import islazy
 from tatu.sql.abs.mixin.thread import asThread
 from transf.mixin.identification import withIdentification
@@ -42,7 +43,7 @@ class Storage(asThread, withIdentification, ABC):
     # TODO (strict) fetch by uuid
     # TODO (strict) store
     def lazyfetch(self, data, lock=False):  # , recursive=True):
-        data_id = data if isinstance(data, str) else data
+        data_id = data if isinstance(data, str) else data.id
         # lst = []
         print("Fetching...", data_id)
         # while True:
@@ -65,12 +66,11 @@ class Storage(asThread, withIdentification, ABC):
                 fields[field] = lambda: self.lazyfetch(ret["inner"])
             elif field == "stream":
                 fields[field] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
+            elif field == "changed":
+                fields[field] = unpack(self.getfields(data_id, [field])[0])
             else:
                 fields[field] = (lambda name: lambda: unpack(self.getfields(data_id, [name])[0]))(field)
-
-            if field == "changed":
-                fields[field] = unpack(ret["changed"])
-            else:
+            if field != "changed":
                 # Call each lambda by a friendly name.
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
@@ -78,7 +78,7 @@ class Storage(asThread, withIdentification, ABC):
             history = History(NoOp())
         else:
             history = data.history
-        return Data(data_id, ret["uuids"], history, **fields)
+        return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
     def lazystore(self, data: Data, ignoredup=False):
         """
