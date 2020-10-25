@@ -44,7 +44,7 @@ class Storage(asThread, withIdentification, ABC):
 
     # TODO (strict) fetch by uuid
     # TODO (strict) store
-    def lazyfetch(self, data, lock=False):  # , recursive=True):
+    def fetch(self, data, lock=False, lazy=True):  # , recursive=True):
         """Fetch the data object fields on-demand.
          data: uuid string or a (probably still not fully evaluated) Data object."""
         data_id = data if isinstance(data, str) else data.id
@@ -67,14 +67,14 @@ class Storage(asThread, withIdentification, ABC):
         fields = {}
         for field in ret["uuids"]:
             if field == "inner":
-                fields[field] = lambda: self.lazyfetch(ret["inner"])
+                fields[field] = (lambda: self.fetch(ret[field])) if lazy else self.fetch(ret[field])
             elif field == "stream":
                 fields[field] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
             elif field == "changed":
                 fields[field] = unpack(self.getfields(data_id, [field])[0])
             else:
-                fields[field] = (lambda name: lambda: unpack(self.getfields(data_id, [name])[0]))(field)
-            if field != "changed":
+                fields[field] = (lambda name: lambda: unpack(self.getfields(data_id, [name])[0]))(field) if lazy else unpack(self.getfields(data_id, [field])[0])
+            if lazy and field != "changed":
                 # Call each lambda by a friendly name.
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
@@ -82,9 +82,10 @@ class Storage(asThread, withIdentification, ABC):
             history = History(NoOp()) << New({}) << Del("X")
         else:
             history = data.history
+        print(data_id, ret)
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
-    def lazystore(self, data: Data, ignoredup=False):
+    def store(self, data: Data, ignoredup=False, lazy=True):
         """Store all Data object fields as soon as one of them is evaluated.
 
         # The sequence of queries is planned to minimize traffic and CPU load,
@@ -120,8 +121,7 @@ class Storage(asThread, withIdentification, ABC):
                 for k, v in field_funcs.items():
                     if islazy(v):
                         v = v()
-                    held_data.field_funcs_m[
-                        k] = v  # The old value may not be lazy, but the new one can be due to this very lazystore.
+                    held_data.field_funcs_m[k] = v  # The old value may not be lazy, but the new one can be due to this very lazystore.
                     id = held_data.uuids[k].id
                     if id in puts:
                         self.putcontent(id, pack(v))
@@ -132,12 +132,18 @@ class Storage(asThread, withIdentification, ABC):
 
         while True:
             # Fields.
-            field_funcs_copy = data.field_funcs_m.copy()
             missing = self.missing([u.id for u in data.uuids.values()])
-            for field in data.field_funcs_m:
-                data.field_funcs_m[field] = func(data, field, field_funcs_copy, missing)
-                data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
-                print("!!!!!!!!!!!!!!!!    missing", field, data.field_funcs_m[field])
+            if lazy:
+                field_funcs_copy = data.field_funcs_m.copy()
+                for field in data.field_funcs_m:
+                    data.field_funcs_m[field] = func(data, field, field_funcs_copy, missing)
+                    data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
+                    print("!!!!!!!!!!!!!!!!    missing", field, data.field_funcs_m[field])
+            else:
+                for k, v in data:
+                    id = data.uuids[k].id
+                    if id in missing:
+                        self.putcontent(id, pack(v))
 
             lst.append(data)
             if not data.hasinner:
@@ -160,6 +166,8 @@ class Storage(asThread, withIdentification, ABC):
                 # We assume it is faster to do a single insertignore than select+insert, hence ignoredup=True here.
                 self.putdata(datauuid.id, step.id, None, False, parent_uuid.id, None, ignoredup=True)
 
+            if not lazy:
+                self.putfields([(d.id, fname, fuuid.id) for fname, fuuid in d.uuids.items()])
         return lst[0]
 
     def fetchstep(self, id):
