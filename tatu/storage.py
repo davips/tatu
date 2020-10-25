@@ -85,7 +85,7 @@ class Storage(asThread, withIdentification, ABC):
         print(data_id, ret)
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
-    def store(self, data: Data, ignoredup=False, lazy=True):
+    def store(self, data: Data, ignoredup=False, lazy=False):
         """Store all Data object fields as soon as one of them is evaluated.
 
         # The sequence of queries is planned to minimize traffic and CPU load,
