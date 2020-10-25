@@ -24,9 +24,11 @@ from abc import ABC, abstractmethod
 from aiuna.compression import unpack, pack
 from aiuna.content.data import Data
 from aiuna.content.root import Root
+from aiuna.history import History
 from linalghelper import islazy
 from tatu.sql.abs.mixin.thread import asThread
 from transf.mixin.identification import withIdentification
+from transf.noop import NoOp
 from transf.step import Step
 
 
@@ -40,13 +42,14 @@ class Storage(asThread, withIdentification, ABC):
     # TODO (strict) fetch by uuid
     # TODO (strict) store
     def lazyfetch(self, data, lock=False):  # , recursive=True):
+        data_id = data if isinstance(data, str) else data
         # lst = []
-        print("Fetching...", data.id)
+        print("Fetching...", data_id)
         # while True:
-        ret = self.getdata(data.id)
+        ret = self.getdata(data_id)
         if ret is None:
-            if lock and not self.lock(data.id):
-                raise Exception("Could not lock data:", data.id)
+            if lock and not self.lock(data_id):
+                raise Exception("Could not lock data:", data_id)
             return
 
         # Build a lazy Data object  TODO essa parte só serve qnd temos apenas o data uuid
@@ -63,15 +66,19 @@ class Storage(asThread, withIdentification, ABC):
             elif field == "stream":
                 fields[field] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
             else:
-                fields[field] = (lambda name: lambda: unpack(self.getfields(data.id, [name])[0]))(field)
+                fields[field] = (lambda name: lambda: unpack(self.getfields(data_id, [name])[0]))(field)
 
             if field == "changed":
-                fields[field] = data.changed
+                fields[field] = unpack(ret["changed"])
             else:
                 # Call each lambda by a friendly name.
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
-        return Data(data.uuid, ret["uuids"], data.history, **fields)
+        if isinstance(data, str):
+            history = History(NoOp())
+        else:
+            history = data.history
+        return Data(data_id, ret["uuids"], history, **fields)
 
     def lazystore(self, data: Data, ignoredup=False):
         """
@@ -108,7 +115,8 @@ class Storage(asThread, withIdentification, ABC):
                 for k, v in field_funcs.items():
                     if islazy(v):
                         v = v()
-                    held_data.field_funcs_m[k] = v  # The old value may not be lazy, but the new one can be due to this very lazystore.
+                    held_data.field_funcs_m[
+                        k] = v  # The old value may not be lazy, but the new one can be due to this very lazystore.
                     id = held_data.uuids[k].id
                     if id in puts:
                         self.putcontent(id, pack(v))
@@ -188,6 +196,7 @@ class Storage(asThread, withIdentification, ABC):
         return self.do(self._hasfield_, locals(), wait=True)
 
     def missing(self, ids):
+        """Return which contents are missing from the given list."""
         return self.do(self._missing_, locals(), wait=True)
 
     def delete_data(self, data: Data, check_existence=True, recursive=True):
