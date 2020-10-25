@@ -24,7 +24,9 @@ from abc import ABC, abstractmethod
 from aiuna.compression import unpack, pack
 from aiuna.content.data import Data
 from aiuna.content.root import Root
+from aiuna.delete import Del
 from aiuna.history import History
+from aiuna.new import New
 from cruipto.uuid import UUID
 from linalghelper import islazy
 from tatu.sql.abs.mixin.thread import asThread
@@ -77,7 +79,7 @@ class Storage(asThread, withIdentification, ABC):
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
         if isinstance(data, str):
-            history = History(NoOp())
+            history = History(NoOp()) << New({}) << Del("X")
         else:
             history = data.history
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
