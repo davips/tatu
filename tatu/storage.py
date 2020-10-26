@@ -51,7 +51,7 @@ class Storage(asThread, withIdentification, ABC):
         # lst = []
         print("Fetching...", data_id)
         # while True:
-        ret = self.getdata(data_id)
+        ret = self.getdata(data_id, include_empty=False)
         if ret is None:
             if lock and not self.lock(data_id):
                 raise Exception("Could not lock data:", data_id)
@@ -181,7 +181,7 @@ class Storage(asThread, withIdentification, ABC):
         """ include_empty: whether to assess the existence of fields, instead of just the data row"""
         return self.do(self._hasdata_, locals(), wait=True)
 
-    def getdata(self, id):
+    def getdata(self, id, include_empty=True):
         """Return a info for a Data object."""
         print("Getting...", id)
         r = self.do(self._getdata_, locals(), wait=True)

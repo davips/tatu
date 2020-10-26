@@ -70,6 +70,7 @@ class MySQL(SQL):
         )
         self.connection.client_flag &= pymysql.constants.CLIENT.MULTI_STATEMENTS
         self.connection.autocommit(False)
+        self.connection.server_status
 
         if self.debug:
             print("getting cursor...")
