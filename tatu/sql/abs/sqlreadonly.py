@@ -38,7 +38,7 @@ class SQLReadOnly(Storage, withSetup, ABC):
         else:
             # REMINDER Inner join ensures a Data row with fields.
             nonempty = f"select 1 from data d INNER JOIN field f ON d.id=f.data where d.id=? limit 1"
-            withstream = "select 1 from data where id=? and stream=true"
+            withstream = "select 1 from data where id=? and stream=1"
             sql = f"{withstream} UNION {nonempty}"
         return self.read(sql, [id, id]).fetchone() is not None
 

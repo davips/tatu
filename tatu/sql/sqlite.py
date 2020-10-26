@@ -74,6 +74,10 @@ class SQLite(SQL):
     def _on_conflict(cls, cols):
         return f"ON CONFLICT{cols} DO UPDATE SET"
 
+    @classmethod
+    def _fkcheck(cls, enable):
+        return f"PRAGMA foreign_keys = {'ON' if enable else 'OFF'};"
+
     @classproperty
     def _insert_ignore(cls):
         return "insert or ignore"

@@ -50,6 +50,11 @@ class withSetup(ABC):
 
     @classmethod
     @abstractmethod
+    def _fkcheck(cls, enable):
+        pass
+
+    @classmethod
+    @abstractmethod
     def _on_conflict(cls, cols):
         pass
 
@@ -132,7 +137,7 @@ class withSetup(ABC):
         self.query2(f'CREATE INDEX if not exists idx5 ON data (id)')
         self.query2(f'CREATE INDEX if not exists idx6 ON data (step)')
         self.query2(f'CREATE INDEX if not exists idx7 ON data (parent)')
-        self.query2(f"insert into data values (null, '{UUID().id}', '{UUID.identity.id}', null, false, '{UUID().id}', false)")
+        self.query2(f"insert into data values (null, '{UUID().id}', '{UUID.identity.id}', null, 0, '{UUID().id}', 0)")
 
         self.query2(
             f"""

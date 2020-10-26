@@ -120,6 +120,10 @@ class MySQL(SQL):
     def _insert_ignore(cls):
         return "insert ignore"
 
+    @classmethod
+    def _fkcheck(cls, enable):
+        return f"SET FOREIGN_KEY_CHECKS={'1' if enable else '0'}"
+
     @classproperty
     def _placeholder(cls):
         return "%s"

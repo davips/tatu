@@ -45,7 +45,7 @@ CREATE INDEX idx5 ON data (id);
 CREATE INDEX idx6 ON data (step);
 CREATE INDEX idx7 ON data (parent);
 -- '3oawXk8ZTPtS5DBsghkFNnz' is the identity matrix / identity step: x(x) = x
-insert into data values (null, '00000000000000000000001', '3oawXk8ZTPtS5DBsghkFNnz', null, false, '00000000000000000000001', false, now());
+insert into data values (null, '00000000000000000000001', '3oawXk8ZTPtS5DBsghkFNnz', null, 0, '00000000000000000000001', 0, now());
 
 create table if not exists field (
     data char(23) NOT NULL,

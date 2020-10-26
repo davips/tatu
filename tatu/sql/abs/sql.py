@@ -40,23 +40,23 @@ class SQL(SQLReadOnly, ABC):
             r = self.write(sql, args).commit()
             return 1 == r
         except IntegrityError as e:
-            if "r" in self.read("select 1 as r from data where id=? and locked=true", [id]).fetchone():
+            if "r" in self.read("select 1 as r from data where id=? and locked=1", [id]).fetchone():
                 raise LockedEntryException(id)
             else:
                 raise DuplicateEntryException(id)
 
     def _lock_(self, id, ignoredup=False):
         # Placeholder values: step=identity and parent=own-id
-        sql = f"insert {'or ignore' if ignoredup else ''} into data values (null,?,'{NoOp().id}',null,false,?,true)"
+        sql = f"insert {'or ignore' if ignoredup else ''} into data values (null,?,'{NoOp().id}',null,0,?,1)"
         return self._handle_integrity_error(id, sql, [id, id])
 
     def _unlock_(self, id):
-        self.query2("SET FOREIGN_KEY_CHECKS=0")
+        self.query2(self._fkcheck(False))
         try:
-            self.query2(f"delete from data where id=? and locked=true", [id])
+            self.query2(f"delete from data where id=? and locked=1", [id])
             r = self.cursor.rowcount
         finally:
-            self.query2("SET FOREIGN_KEY_CHECKS=1")
+            self.query2(self._fkcheck(True))
             self.commit()
         return r == 1
 

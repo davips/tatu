@@ -140,7 +140,7 @@ class Storage(asThread, withIdentification, ABC):
                     data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
                     print("!!!!!!!!!!!!!!!!    missing", field, data.field_funcs_m[field])
             else:
-                for k, v in data:
+                for k, v in data.items():
                     id = data.uuids[k].id
                     if id in missing:
                         self.putcontent(id, pack(v))
