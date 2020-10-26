@@ -65,7 +65,7 @@ class MySQL(SQL):
             user=self.user,
             password=self.password,
             charset="utf8",
-            cursorclass=pymysql.cursors.DictCursor,
+            # cursorclass=pymysql.cursors.DictCursor,
             # client_flag=CLIENT.MULTI_STATEMENTS
         )
         self.connection.client_flag &= pymysql.constants.CLIENT.MULTI_STATEMENTS
@@ -73,7 +73,7 @@ class MySQL(SQL):
 
         if self.debug:
             print("getting cursor...")
-        self.cursor = self.connection.cursor()
+        self.cursor = self.connection.cursor(pymysql.cursors.DictCursor)
 
         # Create db if it doesn't exist yet.
         self.query2(f"SHOW DATABASES LIKE '{self.db}'")
