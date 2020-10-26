@@ -183,9 +183,9 @@ class Storage(asThread, withIdentification, ABC):
 
     def getdata(self, id, include_empty=True):
         """Return a info for a Data object."""
-        print("Getting...", id)
+        print("Getting data...", id)
         r = self.do(self._getdata_, locals(), wait=True)
-        print("       ...got?", id, bool(r))
+        print("       ...got data?", id, bool(r))
         return r
 
     def getstep(self, id):
@@ -197,9 +197,9 @@ class Storage(asThread, withIdentification, ABC):
 
     def getfields(self, id, names):
         """Return info for a field."""
-        print("Getting step...", id)
+        print("Getting fields...", id)
         r = self.do(self._getfields_, locals(), wait=True)
-        print("       ...got step?", id, bool(r))
+        print("       ...got fields?", id, bool(r))
         return r
 
     def hasstep(self, id):
