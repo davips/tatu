@@ -42,12 +42,14 @@ class SQLReadOnly(Storage, withSetup, ABC):
             nonempty = f"select 1 from data d INNER JOIN field f ON d.id=f.data where d.id=? limit 1"
             withstream = "select 1 from data where id=? and stream=1"
             sql = f"{withstream} UNION {nonempty}"
-        return self.read(sql, [id, id], cursor=self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
+        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
+        return self.read(sql, [id, id], cursor=cursor).fetchone() is not None
 
     def _getdata_(self, id, include_empty=True):
         cols = "step,inn,stream,parent,locked,name as field_name,content as field_id"
         sql = f"select {cols} from data d {'left' if include_empty else 'inner'} join field f on d.id=f.data where d.id=?"
-        r = self.read(sql, [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchall()
+        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
+        r = self.read(sql, [id], cursor).fetchall()
         if not r:
             return
         uuids = {}
@@ -67,7 +69,9 @@ class SQLReadOnly(Storage, withSetup, ABC):
 
     def _getfields_(self, id, names):
         sql = f"select value from field inner join content on content=id where data=? and name in ({('?,' * len(names))[:-1]})"
-        return [row["value"] for row in self.read(sql, [id] + names,self.connection.cursor(pymysql.cursors.DictCursor)).fetchall()]  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
+        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
+        rows = self.read(sql, [id] + names,cursor=cursor).fetchall()
+        return [row["value"] for row in rows]  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
 
     def _hasstep_(self, id):
         return self.read(f"select 1 from step where id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
@@ -79,7 +83,8 @@ class SQLReadOnly(Storage, withSetup, ABC):
         return self.read(f"select 1 from content where id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
 
     def _missing_(self, ids):
-        lst = [row["id"] for row in self.read(f"select id from content where id in ({('?,' * len(ids))[:-1]})", ids, self.connection.cursor(pymysql.cursors.DictCursor)).fetchall()]
+        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
+        lst = [row["id"] for row in self.read(f"select id from content where id in ({('?,' * len(ids))[:-1]})", ids, cursor=cursor).fetchall()]
         return [id for id in ids if id not in lst]
 
     # def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:

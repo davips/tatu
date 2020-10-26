@@ -78,8 +78,9 @@ class SQL(SQLReadOnly, ABC):
     def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
         configid = UUID(config.encode()).id
         # ALmost never two steps will have the same config, unless it is too short and worthless to avoid the extra insert attempt.
-        self.write(f"insert or ignore INTO config VALUES (?,?)", [configid, config], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)", [id, name, path, configid, dump], self.connection.cursor(pymysql.cursors.DictCursor)).commit()
+        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
+        self.write(f"insert or ignore INTO config VALUES (?,?)", [configid, config], cursor=cursor)
+        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)", [id, name, path, configid, dump], cursor=cursor).commit()
         return 1 == r
 
     # def _putcontent_(self, id, value):

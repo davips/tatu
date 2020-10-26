@@ -82,7 +82,7 @@ class Storage(asThread, withIdentification, ABC):
             history = History(NoOp()) << New({}) << Del("X")
         else:
             history = data.history
-        print(data_id, ret)
+        print("> > > > > > > > > fetched?", data_id, ret)
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
     def store(self, data: Data, unlock=False, ignoredup=False, lazy=False):
@@ -186,6 +186,7 @@ class Storage(asThread, withIdentification, ABC):
         print("Getting data...", id)
         r = self.do(self._getdata_, locals(), wait=True)
         print("       ...got data?", id, bool(r))
+        print(r)
         return r
 
     def getstep(self, id):
