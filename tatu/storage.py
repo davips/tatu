@@ -85,7 +85,7 @@ class Storage(asThread, withIdentification, ABC):
         print(data_id, ret)
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
-    def store(self, data: Data, ignoredup=False, lazy=False):
+    def store(self, data: Data, unlock=False, ignoredup=False, lazy=False):
         """Store all Data object fields as soon as one of them is evaluated.
 
         # The sequence of queries is planned to minimize traffic and CPU load,
@@ -151,7 +151,7 @@ class Storage(asThread, withIdentification, ABC):
             data = data.inner
 
         for i, d in reversed(list(enumerate(lst))):
-            if i == 0:
+            if i == 0 and unlock:
                 self.unlock(d.id)
 
             # History.
@@ -244,7 +244,7 @@ class Storage(asThread, withIdentification, ABC):
         print("Unlocking...", id)
         r = self.do(self._unlock_, {"id": id}, wait=True)
         if check_success and not r:
-            raise Exception("Cannot lock, data does not exist:", id)
+            raise Exception("Cannot unlock, data does not exist:", id)
         print("    ...unlocked?", id, bool(r))
         return r
 

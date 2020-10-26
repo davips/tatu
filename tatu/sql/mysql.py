@@ -122,7 +122,7 @@ class MySQL(SQL):
 
     @classmethod
     def _fkcheck(cls, enable):
-        return f"SET FOREIGN_KEY_CHECKS={'1' if enable else '0'}"
+        return f"SET FOREIGN_KEY_CHECKS={'1' if enable else '0'};"
 
     @classproperty
     def _placeholder(cls):
