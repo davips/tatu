@@ -20,6 +20,8 @@
 #
 from abc import ABC
 
+import pymysql
+
 from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from tatu.sql.abs.mixin.setup import withSetup
@@ -40,12 +42,12 @@ class SQLReadOnly(Storage, withSetup, ABC):
             nonempty = f"select 1 from data d INNER JOIN field f ON d.id=f.data where d.id=? limit 1"
             withstream = "select 1 from data where id=? and stream=1"
             sql = f"{withstream} UNION {nonempty}"
-        return self.read(sql, [id, id]).fetchone() is not None
+        return self.read(sql, [id, id], cursor=self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
 
     def _getdata_(self, id, include_empty=True):
         cols = "step,inn,stream,parent,locked,name as field_name,content as field_id"
         sql = f"select {cols} from data d {'left' if include_empty else 'inner'} join field f on d.id=f.data where d.id=?"
-        r = self.read(sql, [id]).fetchall()
+        r = self.read(sql, [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchall()
         if not r:
             return
         uuids = {}
@@ -57,7 +59,7 @@ class SQLReadOnly(Storage, withSetup, ABC):
         return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"], "stream": row["stream"]}
 
     def _getstep_(self, id):
-        row = self.read("select name,path,params from step s inner join config c on s.id=c.step where s.id=?", [id]).fetchone()
+        row = self.read("select name,path,params from step s inner join config c on s.id=c.step where s.id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone()
         if row is None:
             return
         desc = {"name": row["name"], "path": row["path"], "config": row["params"]}
@@ -65,19 +67,19 @@ class SQLReadOnly(Storage, withSetup, ABC):
 
     def _getfields_(self, id, names):
         sql = f"select value from field inner join content on content=id where data=? and name in ({('?,' * len(names))[:-1]})"
-        return [row["value"] for row in self.read(sql, [id] + names).fetchall()]  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
+        return [row["value"] for row in self.read(sql, [id] + names,self.connection.cursor(pymysql.cursors.DictCursor)).fetchall()]  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
 
     def _hasstep_(self, id):
-        return self.read(f"select 1 from step where id=?", [id]).fetchone() is not None
+        return self.read(f"select 1 from step where id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
 
     def _hascontent_(self, id):
-        return self.read(f"select 1 from content where id=?", [id]).fetchone() is not None
+        return self.read(f"select 1 from content where id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
 
     def _hasfield_(self, id):
-        return self.read(f"select 1 from content where id=?", [id]).fetchone() is not None
+        return self.read(f"select 1 from content where id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
 
     def _missing_(self, ids):
-        lst = [row["id"] for row in self.read(f"select id from content where id in ({('?,' * len(ids))[:-1]})", ids).fetchall()]
+        lst = [row["id"] for row in self.read(f"select id from content where id in ({('?,' * len(ids))[:-1]})", ids, self.connection.cursor(pymysql.cursors.DictCursor)).fetchall()]
         return [id for id in ids if id not in lst]
 
     # def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
@@ -235,16 +237,15 @@ class SQLReadOnly(Storage, withSetup, ABC):
     # #     #     # Re-raise a new exception of the same class as the original one
     # #     #     raise type(ex)("%s\norig. trac.:\n%s\n" % (msg, traceback_string))
 
-    def read(self, sql, args=[], cursor=None):
+    def read(self, sql, args, cursor):
         if not (sql.startswith("select ") or sql.startswith("(select ")):
             raise Exception("========================================\n", "Attempt to write onto read-only storage!", sql)
         self.query2(sql, args, cursor)
-        return Result(self.connection, cursor or self.cursor)
+        return Result(self.connection, cursor)
 
     # noinspection PyDefaultArgument
-    def query2(self, sql, args=[], cursor=None):
+    def query2(self, sql, args, cursor):
         # TODO with / catch / finalize connection?
-        cursor = cursor or self.cursor
         args = [int(c) if isinstance(c, bool) else c for c in args]
         sql = sql.replace("insert or ignore", self._insert_ignore)
         if self.debug:

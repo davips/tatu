@@ -20,6 +20,8 @@
 #
 from abc import abstractmethod, ABC
 
+import pymysql
+
 from cruipto.decorator import classproperty
 from cruipto.uuid import UUID
 from transf.noop import NoOp
@@ -27,7 +29,7 @@ from transf.noop import NoOp
 
 class withSetup(ABC):
     @abstractmethod
-    def query2(self, x):
+    def query2(self, sql, args, cursor):
         pass
 
     @classmethod
@@ -85,7 +87,7 @@ class withSetup(ABC):
                 id char(23) NOT NULL primary key,
                 value LONGBLOB NOT NULL
             )"""
-        )
+        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
 
         # Table with values for parameters of Step objects. Insert the empty config as the fisrt one.
         self.query2(
@@ -94,12 +96,12 @@ class withSetup(ABC):
                 id char(23) NOT NULL primary key,
                 params text NOT NULL
             )"""
-        )
+            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         try:  # REMINDER Only MariaDB accepts 'CREATE INDEX if not exists'
-            self.query2(f'CREATE INDEX  idx1 ON config (params{self._keylimit})')
+            self.query2(f'CREATE INDEX  idx1 ON config (params{self._keylimit})'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         except:
             pass
-        self.query2(f"insert into config values ('{UUID(b'{}').id}', " + "'{}')")
+        self.query2(f"insert into config values ('{UUID(b'{}').id}', " + "'{}')"        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
 
         # Table with steps. The mythical NoOp step that created the Root data is inserted as the first one (due to constraint issues).
         self.query2(
@@ -114,15 +116,16 @@ class withSetup(ABC):
                 FOREIGN KEY (config) REFERENCES config(id),
                 FOREIGN KEY (content) REFERENCES content(id)
             )"""
-        )
+            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         try:
-            self.query2(f'CREATE INDEX idx2 ON step (id)')
-            self.query2(f'CREATE INDEX idx3 ON step (name)')
-            self.query2(f'CREATE INDEX idx4 ON step (path)')
+            self.query2(f'CREATE INDEX idx2 ON step (id)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+            self.query2(f'CREATE INDEX idx3 ON step (name)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+            self.query2(f'CREATE INDEX idx4 ON step (path)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         except:
             pass
         self.query2(
-            f"insert into step values (null, '{NoOp().id}', '{NoOp().name}', '{NoOp().context}', '{UUID(b'{}').id}', null)")
+            f"insert into step values (null, '{NoOp().id}', '{NoOp().name}', '{NoOp().context}', '{UUID(b'{}').id}', null)"        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+
 
         # Table data.
         self.query2(
@@ -140,14 +143,15 @@ class withSetup(ABC):
                 FOREIGN KEY (inn) REFERENCES data(id),
                 FOREIGN KEY (parent) REFERENCES data(id)
             )"""
-        )
+            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         try:
-            self.query2(f'CREATE INDEX  idx5 ON data (id)')
-            self.query2(f'CREATE INDEX  idx6 ON data (step)')
-            self.query2(f'CREATE INDEX  idx7 ON data (parent)')
+            self.query2(f'CREATE INDEX  idx5 ON data (id)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+            self.query2(f'CREATE INDEX  idx6 ON data (step)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+            self.query2(f'CREATE INDEX  idx7 ON data (parent)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         except:
             pass
-        self.query2(f"insert into data values (null, '{UUID().id}', '{UUID.identity.id}', null, 0, '{UUID().id}', 0)")
+        self.query2(f"insert into data values (null, '{UUID().id}', '{UUID.identity.id}', null, 0, '{UUID().id}', 0)"        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+
 
         self.query2(
             f"""
@@ -159,10 +163,10 @@ class withSetup(ABC):
                 FOREIGN KEY (data) REFERENCES data(id),
                 FOREIGN KEY (content) REFERENCES content(id)
             )"""
-        )
+            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         try:
-            self.query2(f'CREATE INDEX  idx8 ON field (name)')
-            self.query2(f'CREATE INDEX  idx9 ON field (data)')
+            self.query2(f'CREATE INDEX  idx8 ON field (name)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+            self.query2(f'CREATE INDEX  idx9 ON field (data)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         except:
             pass
 
@@ -175,9 +179,9 @@ class withSetup(ABC):
                 t DATETIME,
                 FOREIGN KEY (data) REFERENCES data(id)
             )"""
-        )
+            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         try:
-            self.query2(f'CREATE INDEX  idx10 ON storage (data)')
+            self.query2(f'CREATE INDEX  idx10 ON storage (data)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         except:
             pass
 
@@ -192,9 +196,9 @@ class withSetup(ABC):
                 FOREIGN KEY (data) REFERENCES data(id),
                 FOREIGN KEY (chunk) REFERENCES data(id)
             )"""
-        )
+            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         try:
-            self.query2(f'CREATE INDEX  idx11 ON stream (chunk)')
+            self.query2(f'CREATE INDEX  idx11 ON stream (chunk)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         except:
             pass
 
@@ -214,10 +218,10 @@ class withSetup(ABC):
                 t DATETIME,
                 FOREIGN KEY (data) REFERENCES data(id)
             )"""
-        )
+            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         try:
-            self.query2(f'CREATE INDEX  idx12 ON run (data)')
-            self.query2(f'CREATE INDEX  idx13 ON run (node)')
+            self.query2(f'CREATE INDEX  idx12 ON run (data)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+            self.query2(f'CREATE INDEX  idx13 ON run (node)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
         except:
             pass
 

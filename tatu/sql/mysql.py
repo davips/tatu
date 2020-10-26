@@ -74,25 +74,25 @@ class MySQL(SQL):
 
         if self.debug:
             print("getting cursor...")
-        self.cursor = self.connection.cursor(pymysql.cursors.DictCursor)
+        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
 
         # Create db if it doesn't exist yet.
-        self.query2(f"SHOW DATABASES LIKE '{self.db}'")
-        setup = self.cursor.fetchone() is None
+        self.query2(f"SHOW DATABASES LIKE '{self.db}'", [], cursor)
+        setup = cursor.fetchone() is None
         if setup:
             if self.debug:
                 print("creating database", self.db, "on", self.database, "...")
-            self.cursor.execute("create database if not exists " + self.db)
+            cursor.execute("create database if not exists " + self.db)
             self.commit()
 
         if self.debug:
             print("using database", self.db, "on", self.database, "...")
-        self.cursor.execute("use " + self.db)
-        self.query2(f"show tables")
+        cursor.execute("use " + self.db)
+        self.query2(f"show tables", [], cursor)
 
         # Create tables if they don't exist yet.
         try:
-            self.query2(f"select 1 from data")
+            self.query2(f"select 1 from data", [], cursor)
         except:
             if self.debug:
                 print("creating database", self.database, "...")

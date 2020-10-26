@@ -21,6 +21,8 @@
 from abc import ABC
 from sqlite3 import IntegrityError
 
+import pymysql
+
 from cruipto.uuid import UUID
 from tatu.sql.abs.sqlreadonly import SQLReadOnly
 from tatu.sql.result import Result
@@ -29,15 +31,15 @@ from transf.noop import NoOp
 
 
 class SQL(SQLReadOnly, ABC):
-    cursor = None
     read_only = False
 
     def _delete_data(self, id):
-        return 1 == self.write(f"delete from data where id=?", [id]).commit()
+        return 1 == self.write(f"delete from data where id=?", [id], cursor=self.connection.cursor(pymysql.cursors.DictCursor)).commit()
 
     def _handle_integrity_error(self, id, sql, args):
+        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
         try:
-            r = self.write(sql, args).commit()
+            r = self.write(sql, args, cursor=cursor).commit()
             return 1 == r
         except IntegrityError as e:
             if "r" in self.read("select 1 as r from data where id=? and locked=1", [id]).fetchone():
@@ -51,12 +53,13 @@ class SQL(SQLReadOnly, ABC):
         return self._handle_integrity_error(id, sql, [id, id])
 
     def _unlock_(self, id):
-        self.query2(self._fkcheck(False))
+        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
+        self.query2(self._fkcheck(False),[], cursor=cursor)
         try:
-            self.query2(f"delete from data where id=? and locked=1", [id])
-            r = self.cursor.rowcount
+            self.query2(f"delete from data where id=? and locked=1", [id], cursor)
+            r = cursor.rowcount
         finally:
-            self.query2(self._fkcheck(True))
+            self.query2(self._fkcheck(True),[], cursor=cursor)
             self.commit()
         return r == 1
 
@@ -65,18 +68,18 @@ class SQL(SQLReadOnly, ABC):
         return self._handle_integrity_error(id, sql, [id, step, inn, stream, parent, locked])
 
     def _putfields_(self, rows, ignoredup=False):
-        r = self.write_many(rows, "field").commit()
+        r = self.write_many(rows, "field", cursor=self.connection.cursor(pymysql.cursors.DictCursor)).commit()
         return r > 0
 
     def _putcontent_(self, id, value, ignoredup=False):
-        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO content VALUES (?,?)", [id, value]).commit()
+        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO content VALUES (?,?)", [id, value], cursor=self.connection.cursor(pymysql.cursors.DictCursor)).commit()
         return 1 == r
 
     def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
         configid = UUID(config.encode()).id
         # ALmost never two steps will have the same config, unless it is too short and worthless to avoid the extra insert attempt.
-        self.write(f"insert or ignore INTO config VALUES (?,?)", [configid, config])
-        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)", [id, name, path, configid, dump]).commit()
+        self.write(f"insert or ignore INTO config VALUES (?,?)", [configid, config], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)", [id, name, path, configid, dump], self.connection.cursor(pymysql.cursors.DictCursor)).commit()
         return 1 == r
 
     # def _putcontent_(self, id, value):
@@ -261,7 +264,7 @@ class SQL(SQLReadOnly, ABC):
     #     lastid = f"select last from sync where storage='{stid}'"
     #     lastn = f"IFNULL((select n from data where id in ({lastid})), -1)"
     #     self.query(f"select id from data where n > {lastn} order by n")
-    #     cursor2 = self.connection.cursor()
+    #     cursor2 = self.connection.cursor(pymysql.cursors.DictCursor)()
     #     for row0 in self.cursor:
     #         did = row0["id"]
     #
@@ -293,12 +296,11 @@ class SQL(SQLReadOnly, ABC):
     #             self.query(f"delete from sync where storage=?", [stid], cursor2)
     #             self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
 
-    def write(self, sql, args=[], cursor=None):
+    def write(self, sql, args, cursor):
         self.query2(sql, args, cursor)
-        return Result(self.connection, cursor or self.cursor)
+        return Result(self.connection, cursor)
 
-    def write_many(self, list_of_tuples, table, cursor=None):
-        cursor = cursor or self.cursor
+    def write_many(self, list_of_tuples, table, cursor):
         sql = f"{self._insert_ignore} INTO {table} VALUES({('?,' * len(list_of_tuples[0]))[:-1]})"
 
         newlist_of_tuples = []
