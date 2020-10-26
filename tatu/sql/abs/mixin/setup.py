@@ -95,7 +95,10 @@ class withSetup(ABC):
                 params text NOT NULL
             )"""
         )
-        self.query2(f'CREATE INDEX if not exists idx1 ON config (params{self._keylimit})')
+        try:  # REMINDER Only MariaDB accepts 'CREATE INDEX if not exists'
+            self.query2(f'CREATE INDEX  idx1 ON config (params{self._keylimit})')
+        except:
+            pass
         self.query2(f"insert into config values ('{UUID(b'{}').id}', " + "'{}')")
 
         # Table with steps. The mythical NoOp step that created the Root data is inserted as the first one (due to constraint issues).
@@ -112,10 +115,14 @@ class withSetup(ABC):
                 FOREIGN KEY (content) REFERENCES content(id)
             )"""
         )
-        self.query2(f'CREATE INDEX if not exists idx2 ON step (id)')
-        self.query2(f'CREATE INDEX if not exists idx3 ON step (name)')
-        self.query2(f'CREATE INDEX if not exists idx4 ON step (path)')
-        self.query2(f"insert into step values (null, '{NoOp().id}', '{NoOp().name}', '{NoOp().context}', '{UUID(b'{}').id}', null)")
+        try:
+            self.query2(f'CREATE INDEX idx2 ON step (id)')
+            self.query2(f'CREATE INDEX idx3 ON step (name)')
+            self.query2(f'CREATE INDEX idx4 ON step (path)')
+        except:
+            pass
+        self.query2(
+            f"insert into step values (null, '{NoOp().id}', '{NoOp().name}', '{NoOp().context}', '{UUID(b'{}').id}', null)")
 
         # Table data.
         self.query2(
@@ -134,9 +141,12 @@ class withSetup(ABC):
                 FOREIGN KEY (parent) REFERENCES data(id)
             )"""
         )
-        self.query2(f'CREATE INDEX if not exists idx5 ON data (id)')
-        self.query2(f'CREATE INDEX if not exists idx6 ON data (step)')
-        self.query2(f'CREATE INDEX if not exists idx7 ON data (parent)')
+        try:
+            self.query2(f'CREATE INDEX  idx5 ON data (id)')
+            self.query2(f'CREATE INDEX  idx6 ON data (step)')
+            self.query2(f'CREATE INDEX  idx7 ON data (parent)')
+        except:
+            pass
         self.query2(f"insert into data values (null, '{UUID().id}', '{UUID.identity.id}', null, 0, '{UUID().id}', 0)")
 
         self.query2(
@@ -150,8 +160,11 @@ class withSetup(ABC):
                 FOREIGN KEY (content) REFERENCES content(id)
             )"""
         )
-        self.query2(f'CREATE INDEX if not exists idx8 ON field (name)')
-        self.query2(f'CREATE INDEX if not exists idx9 ON field (data)')
+        try:
+            self.query2(f'CREATE INDEX  idx8 ON field (name)')
+            self.query2(f'CREATE INDEX  idx9 ON field (data)')
+        except:
+            pass
 
         # Table to speed up lookup for not yet synced Data objects.
         self.query2(
@@ -163,7 +176,10 @@ class withSetup(ABC):
                 FOREIGN KEY (data) REFERENCES data(id)
             )"""
         )
-        self.query2(f'CREATE INDEX if not exists idx10 ON storage (data)')
+        try:
+            self.query2(f'CREATE INDEX  idx10 ON storage (data)')
+        except:
+            pass
 
         # Table to record stream, like folds of cross-validation (or chunks of a datastream?).
         self.query2(
@@ -177,7 +193,10 @@ class withSetup(ABC):
                 FOREIGN KEY (chunk) REFERENCES data(id)
             )"""
         )
-        self.query2(f'CREATE INDEX if not exists idx11 ON stream (chunk)')
+        try:
+            self.query2(f'CREATE INDEX  idx11 ON stream (chunk)')
+        except:
+            pass
 
         # Table to record volatile info, i.e. related to a specific run of a step* (e.g. person specific or several runs to assess time).
         # 'id' here is a universal time based UUID(), instead of being based on a hash or on a multiplication like the other ones.
@@ -196,8 +215,11 @@ class withSetup(ABC):
                 FOREIGN KEY (data) REFERENCES data(id)
             )"""
         )
-        self.query2(f'CREATE INDEX if not exists idx12 ON run (data)')
-        self.query2(f'CREATE INDEX if not exists idx13 ON run (node)')
+        try:
+            self.query2(f'CREATE INDEX  idx12 ON run (data)')
+            self.query2(f'CREATE INDEX  idx13 ON run (node)')
+        except:
+            pass
 
         # fail TINYINT
         # update data set {','.join([f'{k}=?' for k in to_update.keys()])}
