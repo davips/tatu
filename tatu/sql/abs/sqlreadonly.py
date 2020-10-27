@@ -61,7 +61,7 @@ class SQLReadOnly(Storage, withSetup, ABC):
         return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"], "stream": row["stream"]}
 
     def _getstep_(self, id):
-        row = self.read("select name,path,params from step s inner join config c on s.id=c.step where s.id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone()
+        row = self.read("select name,path,params from step s inner join config c on s.config=c.id where s.id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone()
         if row is None:
             return
         desc = {"name": row["name"], "path": row["path"], "config": row["params"]}

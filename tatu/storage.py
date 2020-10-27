@@ -18,7 +18,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import json
 from abc import ABC, abstractmethod
 
 from aiuna.compression import unpack, pack
@@ -79,7 +79,9 @@ class Storage(asThread, withIdentification, ABC):
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
         if isinstance(data, str):
-            history = History(NoOp()) << New({}) << Del("X")
+            if lazy:
+                raise Exception("lazy ainda não retorna histórico")
+            history = self.fetchhistory(data)
         else:
             history = data.history
         print("> > > > > > > > > fetched?", data_id, ret)
@@ -170,11 +172,27 @@ class Storage(asThread, withIdentification, ABC):
                 self.putfields([(d.id, fname, fuuid.id) for fname, fuuid in d.uuids.items()])
         return lst[0]
 
+    def fetchhistory(self, id):
+        print("Fetching history...", id)
+        steps = []
+        while True:
+            ret = self.getdata(id)
+            steps.append(self.fetchstep(ret["step"]))
+            if id == UUID().id:
+                break
+            id = ret["parent"]
+        history = History(steps[-1])
+        for step in reversed(steps[:-1]):
+            history <<= step
+            print("   ...history fetched!", id)
+        return history
+
     def fetchstep(self, id):
         """Return a Step object."""
         print("Fetching step...", id)
         r = self.getstep(id)
-        print("       ...fetched step?", id, bool(r))
+        print("       ...fetched step?", id, bool(r), r)
+        r["config"] = json.loads(r["config"])
         return Step.fromdict({"id": id, "desc": r})
 
     def hasdata(self, id, include_empty=False):
