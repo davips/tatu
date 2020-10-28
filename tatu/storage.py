@@ -65,13 +65,13 @@ class Storage(asThread, withIdentification, ABC):
         # step_funcs.name = f"_history_from_storage_" + self.id
 
         fields = {}
-        for field in ret["uuids"]:
+        for field, fid in ret["uuids"].items():
             if field == "stream":
-                fields[field] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
+                fields[field] = lambda: self.getcontent(fid)  # TODO getstream() as iterator of lazyfetches
             elif field == "changed":
-                fields[field] = unpack(self.getfields(data_id, [field])[0])
-            elif field not in ["inner"]:
-                fields[field] = (lambda name: lambda: unpack(self.getfields(data_id, [name])[0]))(field) if lazy else unpack(self.getfields(data_id, [field])[0])
+                fields[field] = unpack(self.getcontent(fid)) if isinstance(data, str) else data.changed
+            elif field not in ["inner"] and (isinstance(data, str) or field in data.changed):
+                fields[field] = (lambda fid_: lambda: unpack(self.getcontent(fid_)))(fid) if lazy else unpack(self.getcontent(fid))
             if lazy and field != "changed":
                 # Call each lambda by a friendly name.
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
@@ -133,7 +133,8 @@ class Storage(asThread, withIdentification, ABC):
 
         while True:
             # Fields.
-            missing = self.missing([u.id for u in data.uuids.values()])
+            cids = [u.id for u in data.uuids.values()]
+            missing = [cid for cid in cids if cid not in self.hascontent(cids)]
             if lazy:
                 field_funcs_copy = data.field_funcs_m.copy()
                 for field in data.field_funcs_m:
@@ -160,7 +161,7 @@ class Storage(asThread, withIdentification, ABC):
             datauuid, ok = Root.uuid, False
             for step in d.history:
                 if not self.hasstep(step.id):
-                    self.putstep(step.id, step.name, step.context, step.config_json)
+                    self.storestep(step)
 
                 parent_uuid = datauuid
                 datauuid = datauuid * step.uuid
@@ -207,6 +208,9 @@ class Storage(asThread, withIdentification, ABC):
         print(r)
         return r
 
+    def hasstep(self, id):
+        return self.do(self._hasstep_, locals(), wait=True)
+
     def getstep(self, id):
         """Return info for a Step object."""
         print("Getting step...", id)
@@ -214,24 +218,25 @@ class Storage(asThread, withIdentification, ABC):
         print("       ...got step?", id, bool(r))
         return r
 
-    def getfields(self, id, names):
-        """Return info for a field."""
+    # REMINDER we check missing fields through hascontent()
+    def getfields(self, id):
+        """Return fields and content for a Data object."""
         print("Getting fields...", id)
         r = self.do(self._getfields_, locals(), wait=True)
         print("       ...got fields?", id, bool(r))
         return r
 
-    def hasstep(self, id):
-        return self.do(self._hasstep_, locals(), wait=True)
+    def getcontent(self, id):
+        """Return content."""
+        print("Getting content...", id)
+        r = self.do(self._getcontent_, locals(), wait=True)
+        print("       ...got content?", id, bool(r))
+        return r
 
-    def hasfield(self, id):
-        return self.do(self._hasfield_, locals(), wait=True)
+    def hascontent(self, ids):
+        return self.do(self._hascontent_, {"ids": ids}, wait=True)
 
-    def missing(self, ids):
-        """Return which contents are missing from the given list."""
-        return self.do(self._missing_, locals(), wait=True)
-
-    def delete_data(self, data: Data, check_existence=True, recursive=True):
+    def removedata(self, data: Data, check_existence=True, recursive=True):
         """Remove Data object, but keeps contents of its fields (even if not used by anyone else).
 
         Returns list of deleted Data object uuids
@@ -240,8 +245,7 @@ class Storage(asThread, withIdentification, ABC):
         ids = []
         while True:
             id = data.id
-            if not self.do(self._delete_data, {"id": id}, wait=True) and check_existence:
-                raise Exception("Cannot delete, data does not exist:", id)
+            self.deldata(id)
             ids.append(id)
             if not recursive or not data.hasinner:
                 break
@@ -256,6 +260,15 @@ class Storage(asThread, withIdentification, ABC):
             raise Exception("Cannot lock, data already exists:", id)
         r = self.do(self._lock_, {"id": id}, wait=True)
         print("    ...locked?", id, bool(r))
+        return r
+
+    def deldata(self, id, check_success=True):
+        """Return whether it succeeded."""
+        print("Deleting data...", id)
+        r = self.do(self._deldata_, {"id": id}, wait=True)
+        if check_success and not r:
+            raise Exception("Cannot unlock, data does not exist:", id)
+        print("    ...deleted?", id, bool(r))
         return r
 
     def unlock(self, id, check_success=True):
@@ -287,6 +300,10 @@ class Storage(asThread, withIdentification, ABC):
         r = self.do(self._putfields_, locals(), wait=True)
         print("    ...put fields?", bool(r), rows)
         return r
+
+    def storestep(self, step, dump=None, ignoredup=False):
+        """Return whether it succeeded."""
+        return self.putstep(step.id, step.name, step.context, step.config_json, dump and step.dump, ignoredup)
 
     def putstep(self, id, name, path, config, dump=None, ignoredup=False):
         """Return whether it succeeded."""
@@ -500,12 +517,19 @@ class Storage(asThread, withIdentification, ABC):
         pass
 
     @abstractmethod
-    def _hasfield_(self, id):
+    def _getstep_(self, id):
         pass
 
     @abstractmethod
-    def _delete_data(self, id):
-        """Return whether it succeeded."""
+    def _getfields_(self, id):
+        pass
+
+    @abstractmethod
+    def _hascontent_(self, ids):
+        pass
+
+    @abstractmethod
+    def _getcontent_(self, id):
         pass
 
     @abstractmethod
@@ -533,15 +557,7 @@ class Storage(asThread, withIdentification, ABC):
         pass
 
     @abstractmethod
-    def _getstep_(self, id):
-        pass
-
-    @abstractmethod
-    def _getfields_(self, id, names):
-        pass
-
-    @abstractmethod
-    def _missing_(self, ids):
+    def _deldata_(self, id):
         pass
 
     def _name_(self):

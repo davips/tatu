@@ -31,96 +31,106 @@ from tatu.storage import Storage
 from aiuna.compression import pack, unpack
 
 from aiuna.content.data import Data
+
+
 class OkaSt(Storage):
     """se data já existir, não tenta criar post!"""
-
-    def _fetch_children_(self, data: Data) -> List[AbsData]:
-        raise Exception("not implemented")
-
-    # TODO should okast point to a real url by default?
-    def __init__(self, token, alias=None, threaded=True, storage_info=None, url="http://localhost:5000"):
+    def __init__(self, token, alias=None, threaded=True, url="http://localhost:5000"):
         self.headers = {'Authorization': 'Bearer ' + token}
-        self.storage_info = storage_info
         self.url = url
         self.alias = alias
         super().__init__(threaded, timeout=6)  # TODO: check if threading will destroy oka
 
     def _uuid_(self):
-        # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
-        response = requests.get(self.url + f"/api/tatu?uuid=storage", headers=self.headers)
-        if b"errors" in response.content:
-            raise Exception("Invalid token", response.content, self.url + f"?uuid=storage")
-        return UUID(json.loads(response.text)["uuid"])
+        return UUID(requests.get(self.url + f"/api/sync", headers=self.headers).json()["uuid"])
 
-    def _store_(self, data: Data, check_dup=True):
-        packed = pack(data)  # TODO: consultar previamente o que falta enviar, p/ minimizar trafego
-        #  TODO: enviar por field
-        #  TODO: override store() para evitar travessia na classe mãe?
-        files = {
-            'json': BytesIO(json.dumps({'alias': self.alias}).encode()),
-            'file': BytesIO(packed)
-        }
-        r = requests.post(self.url + "/api/tatu", files=files, headers=self.headers)
+    def _hasdata_(self, id, include_empty=True):
+        response = requests.get(self.url + f"/api/sync/{id}?dryrun=true", headers=self.headers)
 
-    def _fetch_(self, data: Data, lock=False) -> Optional[Data]:
-        did = data if isinstance(data, str) else data.id
-        response = requests.get(self.url + f"/api/tatu?uuid={did}", headers=self.headers)
-        content = response.content
-        if b"errors" in content:
-            raise Exception("Invalid token", content, self.url + f"?uuid={did}")
-        return content and unpack(content)
 
-    def _delete_(self, data: Data, check_missing=True):
-        raise NotImplemented
+    def _getdata_(self, id, include_empty=True):
+        pass
 
-    def _unlock_(self, data):
-        raise NotImplemented
+    def _hasstep_(self, id):
+        pass
 
+    def _getstep_(self, id):
+        pass
+
+    def _getfields_(self, id):
+        pass
+
+    def _hascontent_(self, ids):
+        pass
+
+    def _getcontent_(self, id):
+        pass
+
+    def _lock_(self, id):
+        pass
+
+    def _unlock_(self, id):
+        pass
+
+    def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
+        pass
+
+    def _putfields_(self, rows, ignoredup=False):
+        pass
+
+    def _putcontent_(self, id, value, ignoredup=False):
+        pass
+
+    def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
+        pass
+
+    # def _hasdata_(self, ids, include_empty=True):
+    #     response = requests.get(self.url + f"/api/sync/{id}?dryrun=true", headers=self.headers)
+    #     content = response.text
+    #     print(response.text)
+    #     if "errors" in content:
+    #         raise Exception("Invazxczvzxvxzlid token", content, self.url + f"/api/sync/{id}")
+    #     return content
+
+    # # api/sync?cat=data&uuid=ua&uuid=ub&empty=0  ->  lista de dicts
+    # def _getdata_(self, ids, include_empty=True):
+    #     response = requests.get(self.url + f"/api/tatu?uuid={id}", headers=self.headers)
+    #     content = response.content
+    #     if b"errors" in content:
+    #         raise Exception("Invalid token", content, self.url + f"?uuid={did}")
+    #     return content
+
+    # # api/sync  ->  string
+    # def _uuid_(self):
+    #     # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
+    #     response = requests.get(self.url + f"/api/tatu?uuid=storage", headers=self.headers)
+    #     if b"errors" in response.content:
+    #         raise Exception("Invalid token", response.content, self.url + f"?uuid=storage")
+    #     return UUID(json.loads(response.text)["uuid"])
+
+
+    # # api/sync?cat=data&uuid=ua  ->  sucesso?
+    # # id, step, inn, stream, parent, locked, ignoredup
+    # def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
+    #     # tem que criar post
+    #     # vincular pra só enviar content se data der certo
+    #     # /sync/hj354jg43kj4g34?inn=hj354jg43kj4g34&names=str&fields=str&history=str
+    #
+    #     packed = pack(data)  # TODO: consultar previamente o que falta enviar, p/ minimizar trafego
+    #     #  TODO: enviar por field
+    #     #  TODO: override store() para evitar travessia na classe mãe?
+    #     files = {
+    #         'json': BytesIO(json.dumps({'alias': self.alias}).encode()),
+    #         'file': BytesIO(packed)
+    #     }
+    #     r = requests.post(self.url + "/api/tatu", files=files, headers=self.headers)
+    #     pass
+
+
+    def _deldata_(self, id):
+        raise Exception(f"OkaSt cannot delete Data objects! HINT: deactivate post {id} it on Oka")
+
+    # ################################################################################
     def _open_(self):
         pass
 
-    def fetch_field(self, _id):
-        raise NotImplementedError
-
-    def _update_remote_(self, storage_func):
-        raise NotImplementedError
-
-    def _hasdata_(self, id):
-        response = requests.get(self.url + f"/api/sync/{id}?dryrun=true", headers=self.headers)
-        content = response.text
-        print(response.text)
-        if "errors" in content:
-            raise Exception("Invazxczvzxvxzlid token", content, self.url + f"/api/sync/{id}")
-        return content
-
-    def _hascontent_(self, id):
-        raise NotImplementedError
-
-    def _hasstep_(self, id):
-        raise NotImplementedError
-
-    def _putdata_(self, **row):
-        # tem que criar post
-        # vincular pra só enviar content se data der certo
-        # /sync/hj354jg43kj4g34?inn=hj354jg43kj4g34&names=str&fields=str&history=str
-        raise NotImplementedError
-
-    def _putcontent_(self, id, value):
-        # tem que criar post
-        # /sync/hj354jg43kj4g34?value=b'21763267f36f3d'
-        raise NotImplementedError
-
-    def _putstep_(self, id, name, path, config, dump=None):
-        raise NotImplementedError
-
-
-def test():
-    url = "http://localhost:5000"
-    oka = OkaSt(threaded=False, token="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE2MDI2ODkzOTUsIm5iZiI6MTYwMjY4OTM5NSwianRpIjoiZDFmMTFlM2YtM2FmZi00Y2EwLWExMjAtMGYwMGZjNzY5NGYzIiwiaWRlbnRpdHkiOiJkYXZpcHMiLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.O31GaVLaGoVWoI_Muo0bCku5YJMBAsjJQBITyL8pdiY", url=url)
-    # b = MySQL(db="tatu:kururu@localhost/tatu").hasdata("2RPtuDLKutP81qX4TaPhu6C")
-    from tatu.sql.sqlite import SQLite
-    b = oka.hasdata("37sjwjtmUgUY3AyRyhlr0xS")
-    print(f"{b}", SQLite().hasdata("37sjwjtmUgUY3AyRyhlr0xS"))
-
-
-test()

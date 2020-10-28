@@ -33,6 +33,7 @@ from tatu.sql.abs.sql import SQL
 
 class MySQL(SQL):
     def __init__(self, db="user:pass@ip/db", threaded=True, storage_info=None, debug=True, read_only=False):
+        self._uuid = UUID((self.__class__.__name__ + db).encode())
         server = db.split("/")[0]
         db = db.split("/")[1]
         self.info = "STORAGE DBG:" + server + ", " + db
@@ -46,8 +47,6 @@ class MySQL(SQL):
         if "-" in db:
             raise Exception("'-' not allowed in db name!")
         self.hostname = socket.gethostname()
-
-        self._uuid = UUID((self.__class__.__name__ + db).encode())
         super().__init__(threaded, timeout=8)
 
     def _uuid_(self):

@@ -71,7 +71,7 @@ class TestStorage(TestCase):
     def test_hasstep(self):
         self.fail()
 
-    def test_hasfield(self):
+    def test_hascontent(self):
         self.fail()
 
     def test_missing(self):

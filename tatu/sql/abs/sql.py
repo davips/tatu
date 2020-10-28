@@ -33,7 +33,7 @@ from transf.noop import NoOp
 class SQL(SQLReadOnly, ABC):
     read_only = False
 
-    def _delete_data(self, id):
+    def _deldata_(self, id):
         return 1 == self.write(f"delete from data where id=?", [id], cursor=self.connection.cursor(pymysql.cursors.DictCursor)).commit()
 
     def _handle_integrity_error(self, id, sql, args):

@@ -42,13 +42,13 @@ class SQLReadOnly(Storage, withSetup, ABC):
             nonempty = f"select 1 from data d INNER JOIN field f ON d.id=f.data where d.id=? limit 1"
             withstream = "select 1 from data where id=? and stream=1"
             sql = f"{withstream} UNION {nonempty}"
-        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
+        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
         return self.read(sql, [id, id], cursor=cursor).fetchone() is not None
 
     def _getdata_(self, id, include_empty=True):
         cols = "step,inn,stream,parent,locked,name as field_name,content as field_id"
         sql = f"select {cols} from data d {'left' if include_empty else 'inner'} join field f on d.id=f.data where d.id=?"
-        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
+        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
         r = self.read(sql, [id], cursor).fetchall()
         if not r:
             return
@@ -61,31 +61,29 @@ class SQLReadOnly(Storage, withSetup, ABC):
         return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"], "stream": row["stream"]}
 
     def _getstep_(self, id):
-        row = self.read("select name,path,params from step s inner join config c on s.config=c.id where s.id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone()
+        row = self.read("select name,path,params from step s inner join config c on s.config=c.id where s.id=?", [id], self.connection.cursor(pymysql.cursors.DictCursor)).fetchone()
         if row is None:
             return
         desc = {"name": row["name"], "path": row["path"], "config": row["params"]}
         return desc
 
-    def _getfields_(self, id, names):
-        sql = f"select value from field inner join content on content=id where data=? and name in ({('?,' * len(names))[:-1]})"
-        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
-        rows = self.read(sql, [id] + names,cursor=cursor).fetchall()
-        return [row["value"] for row in rows]  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
+    def _getfields_(self, id):
+        sql = f"select content as cid,value from field inner join content on content=id where data=?"
+        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
+        rows = self.read(sql, [id], cursor=cursor).fetchall()
+        return {row["cid"]: row["value"] for row in rows}  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
+
+    def _getcontent_(self, id):
+        sql = f"select value from content where id=?"
+        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
+        row = self.read(sql, [id], cursor=cursor).fetchone()
+        return row["value"]
 
     def _hasstep_(self, id):
-        return self.read(f"select 1 from step where id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
+        return self.read(f"select 1 from step where id=?", [id], self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
 
-    def _hascontent_(self, id):
-        return self.read(f"select 1 from content where id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
-
-    def _hasfield_(self, id):
-        return self.read(f"select 1 from content where id=?", [id],self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
-
-    def _missing_(self, ids):
-        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
-        lst = [row["id"] for row in self.read(f"select id from content where id in ({('?,' * len(ids))[:-1]})", ids, cursor=cursor).fetchall()]
-        return [id for id in ids if id not in lst]
+    def _hascontent_(self, ids):
+        return [r["id"] for r in self.read(f"select id from content where id in ({('?,' * len(ids))[:-1]})", ids, self.connection.cursor(pymysql.cursors.DictCursor)).fetchall()]
 
     # def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
     #     # Fetch data info.
