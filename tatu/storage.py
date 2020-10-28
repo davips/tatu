@@ -66,13 +66,11 @@ class Storage(asThread, withIdentification, ABC):
 
         fields = {}
         for field in ret["uuids"]:
-            if field == "inner":
-                fields[field] = (lambda: self.fetch(ret[field])) if lazy else self.fetch(ret[field])
-            elif field == "stream":
+            if field == "stream":
                 fields[field] = lambda: self.getstream(ret["stream"])  # TODO getstream() as iterator of lazyfetches
             elif field == "changed":
                 fields[field] = unpack(self.getfields(data_id, [field])[0])
-            else:
+            elif field not in ["inner"]:
                 fields[field] = (lambda name: lambda: unpack(self.getfields(data_id, [name])[0]))(field) if lazy else unpack(self.getfields(data_id, [field])[0])
             if lazy and field != "changed":
                 # Call each lambda by a friendly name.
@@ -122,12 +120,13 @@ class Storage(asThread, withIdentification, ABC):
             def lamb():
                 for k, v in field_funcs.items():
                     if islazy(v):
-                        v = v()
+                        v = v()  # Cannot call data[k] due to infinite loop.
                     held_data.field_funcs_m[k] = v  # The old value may not be lazy, but the new one can be due to this very lazystore.
                     id = held_data.uuids[k].id
                     if id in puts:
-                        self.putcontent(id, pack(v))
-                self.putfields([(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items()])
+                        if k != "inner":
+                            self.putcontent(id, pack(v))
+                self.putfields([(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items() if fname != "inner"])
                 return held_data.field_funcs_m[name]
 
             return lamb
@@ -145,7 +144,8 @@ class Storage(asThread, withIdentification, ABC):
                 for k, v in data.items():
                     id = data.uuids[k].id
                     if id in missing:
-                        self.putcontent(id, pack(v))
+                        content = v.id.encode() if k == "inner" else pack(v)
+                        self.putcontent(id, content)
 
             lst.append(data)
             if not data.hasinner:
