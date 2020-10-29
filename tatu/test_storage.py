@@ -27,7 +27,7 @@ TestLoader.sortTestMethodsUsing = None  # Needed to ensure database operations a
 
 class TestStorage(TestCase):
     def test_lock(self):
-        MySQL(db="tatu:")
+        MySQL(db="tatu:xxxx")
 
     def test_unlock(self):
         self.fail()

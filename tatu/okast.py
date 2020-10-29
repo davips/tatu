@@ -19,34 +19,38 @@
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import json
-from io import BytesIO
-from typing import Optional, List
-
 import requests
 
 from cruipto.uuid import UUID
-from tatu.sql.mysql import MySQL
-from tatu.storage import Storage
-from aiuna.compression import pack, unpack
-
-from aiuna.content.data import Data
+from tatu.storageinterface import StorageInterface
 
 
-class OkaSt(Storage):
+def j(r):
+    """Helper function needed because flask test_client() provide json as a property(?), not as a method."""
+    return r.json() if callable(r.json) else r.json
+
+
+class OkaSt(StorageInterface):
     """se data já existir, não tenta criar post!"""
+
     def __init__(self, token, alias=None, threaded=True, url="http://localhost:5000"):
-        self.headers = {'Authorization': 'Bearer ' + token}
+        if not isinstance(url, str):
+            self.requester = url
+            self.headers = None
+        else:
+            self.requester = requests
+            self.headers = {'Authorization': 'Bearer ' + token}
         self.url = url
         self.alias = alias
         super().__init__(threaded, timeout=6)  # TODO: check if threading will destroy oka
 
     def _uuid_(self):
-        return UUID(requests.get(self.url + f"/api/sync", headers=self.headers).json()["uuid"])
+        prefix = self.url if isinstance(self.url, str) else ""
+        r = self.requester.get(prefix + f"/api/sync", headers=self.headers)
+        return UUID(j(r)["uuid"])
 
     def _hasdata_(self, id, include_empty=True):
         response = requests.get(self.url + f"/api/sync/{id}?dryrun=true", headers=self.headers)
-
 
     def _getdata_(self, id, include_empty=True):
         pass
@@ -108,7 +112,6 @@ class OkaSt(Storage):
     #         raise Exception("Invalid token", response.content, self.url + f"?uuid=storage")
     #     return UUID(json.loads(response.text)["uuid"])
 
-
     # # api/sync?cat=data&uuid=ua  ->  sucesso?
     # # id, step, inn, stream, parent, locked, ignoredup
     # def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
@@ -126,11 +129,9 @@ class OkaSt(Storage):
     #     r = requests.post(self.url + "/api/tatu", files=files, headers=self.headers)
     #     pass
 
-
     def _deldata_(self, id):
         raise Exception(f"OkaSt cannot delete Data objects! HINT: deactivate post {id} it on Oka")
 
     # ################################################################################
     def _open_(self):
         pass
-

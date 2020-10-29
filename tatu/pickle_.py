@@ -30,10 +30,10 @@ from typing import Optional, List
 from aiuna.content.data import Data
 from cruipto.uuid import UUID
 from tatu.disk import save, load
-from tatu.storage import Storage
+from tatu.storageinterface import StorageInterface
 
 
-class Pickle(Storage):
+class Pickle(StorageInterface):
     def _fetch_children_(self, data: Data):
         raise Exception("Storage Pickle cannot retrieve children!")
 

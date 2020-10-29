@@ -1,7 +1,7 @@
 # Listar *iris*
 import json
 from zipfile import ZipFile
-from tatu.storage import DuplicateEntryException
+from tatu.storageinterface import DuplicateEntryException
 from tatu.pickle_ import Pickle
 from tatu.sql.mysql import MySQL
 from aiuna.creation import read_arff

@@ -28,12 +28,14 @@ from pymysql.constants import CLIENT
 
 from cruipto.decorator import classproperty
 from cruipto.uuid import UUID
-from tatu.sql.abs.sql import SQL
+from tatu.abs.sql import SQL
 
 
 class MySQL(SQL):
     def __init__(self, db="user:pass@ip/db", threaded=True, storage_info=None, debug=True, read_only=False):
         self._uuid = UUID((self.__class__.__name__ + db).encode())
+        if "@" not in db:
+            raise Exception("Missing @ at db url:", db)
         server = db.split("/")[0]
         db = db.split("/")[1]
         self.info = "STORAGE DBG:" + server + ", " + db

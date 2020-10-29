@@ -24,9 +24,9 @@ from sqlite3 import IntegrityError
 import pymysql
 
 from cruipto.uuid import UUID
-from tatu.sql.abs.sqlreadonly import SQLReadOnly
+from tatu.abs.sqlreadonly import SQLReadOnly
 from tatu.sql.result import Result
-from tatu.storage import LockedEntryException, DuplicateEntryException
+from tatu.abs.storage import LockedEntryException, DuplicateEntryException
 from transf.noop import NoOp
 
 

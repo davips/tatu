@@ -29,19 +29,14 @@ from aiuna.history import History
 from aiuna.new import New
 from cruipto.uuid import UUID
 from linalghelper import islazy
-from tatu.sql.abs.mixin.thread import asThread
+from tatu.abs.mixin.thread import asThread
+from tatu.abs.storage import Storage
 from transf.mixin.identification import withIdentification
 from transf.noop import NoOp
 from transf.step import Step
 
 
-class Storage(asThread, withIdentification, ABC):
-    """
-    This class stores and recovers results from some place.
-    The children classes are expected to provide storage in e.g.:
-     SQLite, remote/local MongoDB, MySQL server, pickled or even CSV files.
-    """
-
+class StorageInterface(asThread, Storage, ABC):
     # TODO (strict) fetch by uuid
     # TODO (strict) store
     def fetch(self, data, lock=False, lazy=True):  # , recursive=True):
@@ -71,7 +66,8 @@ class Storage(asThread, withIdentification, ABC):
             elif field == "changed":
                 fields[field] = unpack(self.getcontent(fid)) if isinstance(data, str) else data.changed
             elif field not in ["inner"] and (isinstance(data, str) or field in data.changed):
-                fields[field] = (lambda fid_: lambda: unpack(self.getcontent(fid_)))(fid) if lazy else unpack(self.getcontent(fid))
+                fields[field] = (lambda fid_: lambda: unpack(self.getcontent(fid_)))(fid) if lazy else unpack(
+                    self.getcontent(fid))
             if lazy and field != "changed":
                 # Call each lambda by a friendly name.
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
@@ -121,12 +117,14 @@ class Storage(asThread, withIdentification, ABC):
                 for k, v in field_funcs.items():
                     if islazy(v):
                         v = v()  # Cannot call data[k] due to infinite loop.
-                    held_data.field_funcs_m[k] = v  # The old value may not be lazy, but the new one can be due to this very lazystore.
+                    held_data.field_funcs_m[
+                        k] = v  # The old value may not be lazy, but the new one can be due to this very lazystore.
                     id = held_data.uuids[k].id
                     if id in puts:
                         if k != "inner":
                             self.putcontent(id, pack(v))
-                self.putfields([(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items() if fname != "inner"])
+                self.putfields(
+                    [(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items() if fname != "inner"])
                 return held_data.field_funcs_m[name]
 
             return lamb
@@ -559,25 +557,3 @@ class Storage(asThread, withIdentification, ABC):
     @abstractmethod
     def _deldata_(self, id):
         pass
-
-    def _name_(self):
-        return self.__class__.__name__
-
-    def _context_(self):
-        return self.__class__.__module__
-
-
-class UnlockedEntryException(Exception):
-    """No locked entry for this input data."""
-
-
-class LockedEntryException(Exception):
-    """Another node is/was generating output data for this input data."""
-
-
-class DuplicateEntryException(Exception):
-    """This input data has already been inserted before."""
-
-
-class MissingEntryException(Exception):
-    """This input data is missing."""

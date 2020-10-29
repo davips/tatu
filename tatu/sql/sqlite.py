@@ -27,7 +27,8 @@ from typing import List
 from aiuna.content.data import Data
 from cruipto.decorator import classproperty
 from cruipto.uuid import UUID
-from tatu.sql.abs.sql import SQL
+from tatu.abs.sql import SQL
+
 class SQLite(SQL):
     def __init__(self, db="tatu-sqlite", threaded=True, storage_info=None, debug=not False, read_only=False):
         self.info = db

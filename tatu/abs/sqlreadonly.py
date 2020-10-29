@@ -24,13 +24,13 @@ import pymysql
 
 from aiuna.content.data import Data
 from cruipto.uuid import UUID
-from tatu.sql.abs.mixin.setup import withSetup
+from tatu.abs.mixin.setup import withSetup
 from tatu.sql.result import Result
-from tatu.storage import Storage
+from tatu.storageinterface import StorageInterface
 from transf.step import Step
 
 
-class SQLReadOnly(Storage, withSetup, ABC):
+class SQLReadOnly(StorageInterface, withSetup, ABC):
     cursor = None
     read_only = True
 
