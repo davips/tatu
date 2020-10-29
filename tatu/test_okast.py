@@ -19,6 +19,7 @@
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
 import json
+import warnings
 from unittest import TestCase
 
 from app import create_app, db
@@ -41,6 +42,7 @@ class TestOkaSt(TestCase):
     }
 
     def setUp(self):
+        warnings.simplefilter('ignore', (DeprecationWarning, UserWarning, ImportWarning))
         self.app = create_app(TestConfig)
         self.app_context = self.app.app_context()
         self.app_context.push()
