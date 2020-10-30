@@ -18,10 +18,13 @@
 #      You should have received a copy of the GNU General Public License
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
+from cruipto.decorator import classproperty
 from tatu.abs.storage import Storage
 
 
 class Tatu(Storage):
+    storage = None
+
     def __init__(self, url="sqlite://tatu-sqlite", threaded=True, alias=None):
         if "://" not in url:
             raise Exception("Missing '://' in url:", url)
@@ -42,6 +45,7 @@ class Tatu(Storage):
     def _uuid_(self):
         return self.storage.uuid
 
+    # TODO make all args/kwargs explicity for better docs/IDE integration
     def fetch(self, *args, **kwargs):
         return self.storage.fetch(*args, **kwargs)
 
@@ -101,3 +105,36 @@ class Tatu(Storage):
 
     def putstep(self, *args, **kwargs):
         return self.storage.putstep(*args, **kwargs)
+    #
+    # @classmethod
+    # @classproperty
+    # def _now_function(cls):
+    #     return cls.storage._now_function
+    #
+    # @classmethod
+    # @classproperty
+    # def _keylimit(cls):
+    #     return cls.storage._keylimit
+    #
+    # @classmethod
+    # @classproperty
+    # def _auto_incr(cls):
+    #     return cls.storage._auto_incr
+    #
+    # @classmethod
+    # def _fkcheck(cls, enable):
+    #     return cls.storage._fkcheck
+    #
+    # @classmethod
+    # def _on_conflict(cls, cols):
+    #     return cls.storage._on_conflict
+    #
+    # @classmethod
+    # @classproperty
+    # def _insert_ignore(cls):
+    #     return cls.storage._insert_ignore
+    #
+    # @classmethod
+    # @classproperty
+    # def _placeholder(cls):
+    #     return cls.storage._placeholder

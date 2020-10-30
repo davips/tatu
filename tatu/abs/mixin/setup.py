@@ -19,17 +19,34 @@
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
 from abc import abstractmethod, ABC
+from contextlib import contextmanager
 
-import pymysql
-
+from aiuna.content.root import Root
 from cruipto.decorator import classproperty
 from cruipto.uuid import UUID
 from transf.noop import NoOp
 
 
 class withSetup(ABC):
+    connection = None
+
+    @contextmanager
+    def cursor(self):
+        cursor = self.newcursor()
+        try:
+            yield cursor
+        finally:
+            cursor.close()
+
+    def run(self, cursor, sql, args=[]):
+        return cursor.execute(*self.prepare(sql, args))
+
     @abstractmethod
-    def query2(self, sql, args, cursor):
+    def newcursor(self):
+        pass
+
+    @abstractmethod
+    def prepare(self, sql, arg=[]):
         pass
 
     @classmethod
@@ -75,37 +92,31 @@ class withSetup(ABC):
     def _setup(self):
         print("creating tables...")
         # REMINDER 'inner' is a reserved SQL keyword.
-        # REMINDER d.parent = d.uuid / step.uuid; the field is there just to allow a single recursive query directly on the server.
-        # REMINDER char automatically pads with spaces but ignores them when comparing, perfect instead of varchar that is slower
+        # REMINDER d.parent = d.uuid / step.uuid; the field is there just to allow a single recursive query directly on
+        # the server.
+        # REMINDER char automatically pads with spaces but ignores them when comparing, perfect instead of varchar that
+        # is slower
         # REMINDER field char(24) is almost arbitrary, perhaps someone wants to name a field with a uuid;
         #          23+1 just shows that it is not a uuid column.
 
         # Table for field contents (matrices, ...) and dumps (pickled models, ...).
-        self.query2(
-            f"""
-            create table if not exists content (
-                id char(23) NOT NULL primary key,
-                value LONGBLOB NOT NULL
-            )"""
-        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+        sql = "create table if not exists content (id char(23) NOT NULL primary key, value LONGBLOB NOT NULL)"
+        with self.cursor() as c:
+            self.run(c, sql)
 
         # Table with values for parameters of Step objects. Insert the empty config as the fisrt one.
-        self.query2(
-            f"""
-            create table if not exists config (
-                id char(23) NOT NULL primary key,
-                params text NOT NULL
-            )"""
-            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        try:  # REMINDER Only MariaDB accepts 'CREATE INDEX if not exists'
-            self.query2(f'CREATE INDEX  idx1 ON config (params{self._keylimit})'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        except:
-            pass
-        self.query2(f"insert into config values ('{UUID(b'{}').id}', " + "'{}')"        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+        sql = "create table if not exists config (id char(23) NOT NULL primary key, params text NOT NULL)"
+        with self.cursor() as c:
+            self.run(c, sql)
+            try:  # REMINDER Only MariaDB accepts 'CREATE INDEX if not exists'
+                self.run(c, f"CREATE INDEX  idx1 ON config (params{self._keylimit})")
+            except:
+                pass
+            self.run(c, f"insert into config values ('{UUID(b'{}').id}', " + "'{}')")
 
-        # Table with steps. The mythical NoOp step that created the Root data is inserted as the first one (due to constraint issues).
-        self.query2(
-            f"""
+        # Table with steps.
+        # The mythical NoOp step that created the Root data is inserted as the first one (due to constraint issues).
+        sql = f"""
             create table if not exists step (
                 n integer NOT NULL primary key {self._auto_incr},
                 id char(23) NOT NULL UNIQUE,
@@ -116,20 +127,21 @@ class withSetup(ABC):
                 FOREIGN KEY (config) REFERENCES config(id),
                 FOREIGN KEY (content) REFERENCES content(id)
             )"""
-            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        try:
-            self.query2(f'CREATE INDEX idx2 ON step (id)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-            self.query2(f'CREATE INDEX idx3 ON step (name)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-            self.query2(f'CREATE INDEX idx4 ON step (path)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        except:
-            pass
-        self.query2(
-            f"insert into step values (null, '{NoOp().id}', '{NoOp().name}', '{NoOp().context}', '{UUID(b'{}').id}', null)"        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-
+        with self.cursor() as c:
+            self.run(c, sql)
+            try:
+                self.run(c, f'CREATE INDEX idx2 ON step (id)')
+                self.run(c, f'CREATE INDEX idx3 ON step (name)')
+                self.run(c, f'CREATE INDEX idx4 ON step (path)')
+            except:
+                pass
+        no = NoOp()
+        sql = f"insert into step values (null, '{no.id}', '{no.name}', '{no.context}', '{UUID(b'{}').id}', null)"
+        with self.cursor() as c:
+            self.run(c, sql)
 
         # Table data.
-        self.query2(
-            f"""
+        sql = f"""
             create table if not exists data (
                 n integer NOT NULL primary key {self._auto_incr},
                 id char(23) NOT NULL UNIQUE,
@@ -143,18 +155,19 @@ class withSetup(ABC):
                 FOREIGN KEY (inn) REFERENCES data(id),
                 FOREIGN KEY (parent) REFERENCES data(id)
             )"""
-            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        try:
-            self.query2(f'CREATE INDEX  idx5 ON data (id)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-            self.query2(f'CREATE INDEX  idx6 ON data (step)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-            self.query2(f'CREATE INDEX  idx7 ON data (parent)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        except:
-            pass
-        self.query2(f"insert into data values (null, '{UUID().id}', '{UUID.identity.id}', null, 0, '{UUID().id}', 0)"        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
+        with self.cursor() as c:
+            self.run(c, sql)
+            try:
+                self.run(c, f'CREATE INDEX  idx5 ON data (id)')
+                self.run(c, f'CREATE INDEX  idx6 ON data (step)')
+                self.run(c, f'CREATE INDEX  idx7 ON data (parent)')
+            except:
+                pass
+        sql = f"insert into data values (null, '{Root.id}', '{UUID.identity.id}', null, 0, '{Root.id}', 0)"
+        with self.cursor() as c:
+            self.run(c, sql)
 
-
-        self.query2(
-            f"""
+        sql = f"""
             create table if not exists field (
                 data char(23) NOT NULL,
                 name char(24) NOT NULL,
@@ -163,31 +176,31 @@ class withSetup(ABC):
                 FOREIGN KEY (data) REFERENCES data(id),
                 FOREIGN KEY (content) REFERENCES content(id)
             )"""
-            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        try:
-            self.query2(f'CREATE INDEX  idx8 ON field (name)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-            self.query2(f'CREATE INDEX  idx9 ON field (data)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        except:
-            pass
+        with self.cursor() as c:
+            self.run(c, sql)
+            try:
+                self.run(c, f'CREATE INDEX  idx8 ON field (name)')
+                self.run(c, f'CREATE INDEX  idx9 ON field (data)')
+            except:
+                pass
 
         # Table to speed up lookup for not yet synced Data objects.
-        self.query2(
-            f"""
+        sql = f"""
             create table if not exists storage (
                 id char(23) NOT NULL primary key,
                 data char(23) NOT NULL,
                 t DATETIME,
                 FOREIGN KEY (data) REFERENCES data(id)
             )"""
-            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        try:
-            self.query2(f'CREATE INDEX  idx10 ON storage (data)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        except:
-            pass
+        with self.cursor() as c:
+            self.run(c, sql)
+            try:
+                self.run(c, f'CREATE INDEX  idx10 ON storage (data)')
+            except:
+                pass
 
         # Table to record stream, like folds of cross-validation (or chunks of a datastream?).
-        self.query2(
-            f"""
+        sql = f"""
             create table if not exists stream (
                 data char(23) NOT NULL primary key,
                 pos integer not null,
@@ -196,19 +209,22 @@ class withSetup(ABC):
                 FOREIGN KEY (data) REFERENCES data(id),
                 FOREIGN KEY (chunk) REFERENCES data(id)
             )"""
-            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        try:
-            self.query2(f'CREATE INDEX  idx11 ON stream (chunk)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        except:
-            pass
+        with self.cursor() as c:
+            self.run(c, sql)
+            try:
+                self.run(c, f'CREATE INDEX  idx11 ON stream (chunk)')
+            except:
+                pass
 
-        # Table to record volatile info, i.e. related to a specific run of a step* (e.g. person specific or several runs to assess time).
-        # 'id' here is a universal time based UUID(), instead of being based on a hash or on a multiplication like the other ones.
-        # * -> related to a specific generation of a Data object - more precisely. Many rows can exist for the same Data object.
+        # Table to record volatile info, i.e. related to a specific run of a step*
+        #     (e.g. person specific or several runs to assess time).
+        # 'id' here is a universal time based UUID(),
+        #       instead of being based on a hash or on a multiplication like the other ones.
+        # * -> related to a specific generation of a Data object - more precisely.
+        #  Many rows can exist for the same Data object.
         # 'alive': time of last ping from 'node'
         # 'duration'=NULL while not finished
-        self.query2(
-            f"""
+        sql = f"""
             create table if not exists run (
                 id char(23) NOT NULL primary key,
                 data char(23) NOT NULL,
@@ -218,12 +234,13 @@ class withSetup(ABC):
                 t DATETIME,
                 FOREIGN KEY (data) REFERENCES data(id)
             )"""
-            ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        try:
-            self.query2(f'CREATE INDEX  idx12 ON run (data)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-            self.query2(f'CREATE INDEX  idx13 ON run (node)'        ,args=[], cursor=self.connection.cursor(pymysql.cursors.DictCursor))
-        except:
-            pass
+        with self.cursor() as c:
+            self.run(c, sql)
+            try:
+                self.run(c, f'CREATE INDEX  idx12 ON run (data)')
+                self.run(c, f'CREATE INDEX  idx13 ON run (node)')
+            except:
+                pass
 
         # fail TINYINT
         # update data set {','.join([f'{k}=?' for k in to_update.keys()])}

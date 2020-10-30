@@ -19,7 +19,6 @@
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import json
 import socket
 
 import pymysql
@@ -66,34 +65,36 @@ class MySQL(SQL):
             user=self.user,
             password=self.password,
             charset="utf8",
-            # cursorclass=pymysql.cursors.DictCursor,
+            # cursorclass=pymysql.cursors.DictCursor,  # set at the bottom of this file
             # client_flag=CLIENT.MULTI_STATEMENTS
         )
         self.connection.client_flag &= pymysql.constants.CLIENT.MULTI_STATEMENTS
         self.connection.autocommit(False)
-        self.connection.server_status
+        # self.connection.server_status
 
         if self.debug:
             print("getting cursor...")
-        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
 
         # Create db if it doesn't exist yet.
-        self.query2(f"SHOW DATABASES LIKE '{self.db}'", [], cursor)
-        setup = cursor.fetchone() is None
-        if setup:
-            if self.debug:
-                print("creating database", self.db, "on", self.database, "...")
-            cursor.execute("create database if not exists " + self.db)
-            self.commit()
+        with self.cursor() as c:
+            c.execute(*self.prepare(f"SHOW DATABASES LIKE '{self.db}'"))
+            setup = c.fetchone() is None
+            if setup:
+                if self.debug:
+                    print("creating database", self.db, "on", self.database, "...")
+                c.execute("create database if not exists " + self.db)
+                self.commit()
 
         if self.debug:
             print("using database", self.db, "on", self.database, "...")
-        cursor.execute("use " + self.db)
-        self.query2(f"show tables", [], cursor)
+        with self.cursor() as c:
+            c.execute("use " + self.db)
+            c.execute(f"show tables")
 
         # Create tables if they don't exist yet.
         try:
-            self.query2(f"select 1 from data", [], cursor)
+            with self.cursor() as c:
+                c.execute(f"select 1 from data")
         except:
             if self.debug:
                 print("creating database", self.database, "...")
@@ -129,3 +130,6 @@ class MySQL(SQL):
     @classproperty
     def _placeholder(cls):
         return "%s"
+
+    def newcursor(self):
+        return self.connection.cursor(pymysql.cursors.DictCursor)

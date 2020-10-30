@@ -19,15 +19,13 @@
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import json
 import socket
 import sqlite3
-from typing import List
 
-from aiuna.content.data import Data
 from cruipto.decorator import classproperty
 from cruipto.uuid import UUID
 from tatu.abs.sql import SQL
+
 
 class SQLite(SQL):
     def __init__(self, db="tatu-sqlite", threaded=True, storage_info=None, debug=not False, read_only=False):
@@ -51,7 +49,8 @@ class SQLite(SQL):
 
         # Create tables if they don't exist yet.
         try:
-            self.query2(f"select 1 from data")
+            with self.cursor() as c:
+                c.execute(f"select 1 from data")
         except:
             if self.debug:
                 print("creating database", self.database, "...")
@@ -85,3 +84,6 @@ class SQLite(SQL):
     @classproperty
     def _placeholder(cls):
         return "?"
+
+    def newcursor(self):
+        return self.connection.cursor()

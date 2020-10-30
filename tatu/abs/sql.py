@@ -21,11 +21,8 @@
 from abc import ABC
 from sqlite3 import IntegrityError
 
-import pymysql
-
 from cruipto.uuid import UUID
 from tatu.abs.sqlreadonly import SQLReadOnly
-from tatu.sql.result import Result
 from tatu.abs.storage import LockedEntryException, DuplicateEntryException
 from transf.noop import NoOp
 
@@ -34,18 +31,27 @@ class SQL(SQLReadOnly, ABC):
     read_only = False
 
     def _deldata_(self, id):
-        return 1 == self.write(f"delete from data where id=?", [id], cursor=self.connection.cursor(pymysql.cursors.DictCursor)).commit()
+        with self.cursor() as c:
+            self.run(c, f"delete from data where id=?", [id])
+            self.commit()
+            r = c.rowcount
+        return r == 1
 
     def _handle_integrity_error(self, id, sql, args):
-        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
         try:
-            r = self.write(sql, args, cursor=cursor).commit()
-            return 1 == r
+            with self.cursor() as c:
+                self.run(c, sql, args)
+                self.commit()
+                r = c.rowcount
+            return r == 1
         except IntegrityError as e:
-            if "r" in self.read("select 1 as r from data where id=? and locked=1", [id]).fetchone():
-                raise LockedEntryException(id)
-            else:
-                raise DuplicateEntryException(id)
+            with self.cursor() as c2:
+                self.run(c2, "select 1 as r from data where id=? and locked=1", [id])
+                r2 = c2.fetchone()
+                if "r" in r2:
+                    raise LockedEntryException(id)
+                else:
+                    raise DuplicateEntryException(id)
 
     def _lock_(self, id, ignoredup=False):
         # Placeholder values: step=identity and parent=own-id
@@ -53,35 +59,42 @@ class SQL(SQLReadOnly, ABC):
         return self._handle_integrity_error(id, sql, [id, id])
 
     def _unlock_(self, id):
-        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
-        self.query2(self._fkcheck(False),[], cursor=cursor)
-        try:
-            self.query2(f"delete from data where id=? and locked=1", [id], cursor)
-            r = cursor.rowcount
-        finally:
-            self.query2(self._fkcheck(True),[], cursor=cursor)
-            self.commit()
-        return r == 1
+        with self.cursor() as c:
+            self.run(c, self._fkcheck(False))
+            try:
+                self.run(c, "delete from data where id=? and locked=1", [id])
+                r = c.rowcount
+            finally:
+                self.run(c, self._fkcheck(True))
+                self.commit()
+            return r == 1
 
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
         sql = f"insert {'or ignore' if ignoredup else ''} INTO data values (null,?,?,?,?,?,?)"
         return self._handle_integrity_error(id, sql, [id, step, inn, stream, parent, locked])
 
     def _putfields_(self, rows, ignoredup=False):
-        r = self.write_many(rows, "field", cursor=self.connection.cursor(pymysql.cursors.DictCursor)).commit()
-        return r > 0
+        with self.cursor() as c:
+            self.write_many(c, rows, "field")
+            self.commit()
+            return c.rowcount > 0
 
     def _putcontent_(self, id, value, ignoredup=False):
-        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO content VALUES (?,?)", [id, value], cursor=self.connection.cursor(pymysql.cursors.DictCursor)).commit()
-        return 1 == r
+        with self.cursor() as c:
+            self.run(c, f"insert {'or ignore' if ignoredup else ''} INTO content VALUES (?,?)", [id, value])
+            self.commit()
+            return c.rowcount == 1
 
     def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
         configid = UUID(config.encode()).id
-        # ALmost never two steps will have the same config, unless it is too short and worthless to avoid the extra insert attempt.
-        cursor=self.connection.cursor(pymysql.cursors.DictCursor)
-        self.write(f"insert or ignore INTO config VALUES (?,?)", [configid, config], cursor=cursor)
-        r = self.write(f"insert {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)", [id, name, path, configid, dump], cursor=cursor).commit()
-        return 1 == r
+        # ALmost never two steps will have the same config,
+        #   except the shortest ones which render worthless the avoidance of a second 'insert' attempt.
+        with self.cursor() as c:
+            self.run(c, f"insert or ignore INTO config VALUES (?,?)", [configid, config])
+            sql = f"insert {'or ignore' if ignoredup else ''} INTO step VALUES (NULL,?,?,?,?,?)"
+            self.run(c, sql, [id, name, path, configid, dump])
+            self.commit()
+            return c.rowcount == 1
 
     # def _putcontent_(self, id, value):
     #     self.query(f"insert INTO content VALUES (NULL, ?, ?)", [id, value])
@@ -297,11 +310,7 @@ class SQL(SQLReadOnly, ABC):
     #             self.query(f"delete from sync where storage=?", [stid], cursor2)
     #             self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
 
-    def write(self, sql, args, cursor):
-        self.query2(sql, args, cursor)
-        return Result(self.connection, cursor)
-
-    def write_many(self, list_of_tuples, table, cursor):
+    def write_many(self, cursor, list_of_tuples, table):
         sql = f"{self._insert_ignore} INTO {table} VALUES({('?,' * len(list_of_tuples[0]))[:-1]})"
 
         newlist_of_tuples = []
@@ -313,5 +322,4 @@ class SQL(SQLReadOnly, ABC):
                 print(self.name + ":\t>>>>> " + msg)
 
         sql = sql.replace("?", self._placeholder)
-        cursor.executemany(sql, newlist_of_tuples)
-        return Result(self.connection, cursor)
+        return cursor.executemany(sql, newlist_of_tuples)

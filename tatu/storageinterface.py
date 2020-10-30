@@ -503,11 +503,11 @@ class StorageInterface(asThread, Storage, ABC):
 
     # ================================================================================
     @abstractmethod
-    def _hasdata_(self, id, include_empty=True):
+    def _hasdata_(self, id, include_empty):
         pass
 
     @abstractmethod
-    def _getdata_(self, id, include_empty=True):
+    def _getdata_(self, id, include_empty):
         pass
 
     @abstractmethod
@@ -539,19 +539,19 @@ class StorageInterface(asThread, Storage, ABC):
         pass
 
     @abstractmethod
-    def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
+    def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup):
         pass
 
     @abstractmethod
-    def _putfields_(self, rows, ignoredup=False):
+    def _putfields_(self, rows, ignoredup):
         pass
 
     @abstractmethod
-    def _putcontent_(self, id, value, ignoredup=False):
+    def _putcontent_(self, id, value, ignoredup):
         pass
 
     @abstractmethod
-    def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
+    def _putstep_(self, id, name, path, config, dump, ignoredup):
         pass
 
     @abstractmethod

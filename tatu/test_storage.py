@@ -18,65 +18,23 @@
 #      You should have received a copy of the GNU General Public License
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
-from unittest import TestCase, TestLoader
+import warnings
+from unittest import TestCase
 
-from tatu.sql.mysql import MySQL
-
-TestLoader.sortTestMethodsUsing = None  # Needed to ensure database operations are tested beginning with the most independent ones.
+from aiuna.content.root import Root
+from tatu.sql.sqlite import SQLite
 
 
 class TestStorage(TestCase):
-    def test_lock(self):
-        MySQL(db="tatu:xxxx")
-
-    def test_unlock(self):
-        self.fail()
-
-    def test_putdata(self):
-        self.fail()
-
-    def test_putcontent(self):
-        self.fail()
-
-    def test_putfields(self):
-        self.fail()
-
-    def test_putstep(self):
-        self.fail()
-
-    def test_fetch(self):
-        self.fail()
-
-    def test_store(self):
-        self.fail()
-
-    def test_fetchhistory(self):
-        self.fail()
-
-    def test_fetchstep(self):
-        self.fail()
+    def setUp(self):
+        warnings.simplefilter('ignore', (DeprecationWarning, UserWarning, ImportWarning))
+        self.db = SQLite(db=":memory:")
 
     def test_hasdata(self):
-        self.fail()
+        self.assertFalse(self.db.hasdata("xxxxxxxxx"))
+        self.assertFalse(self.db.hasdata(Root.id))
+        self.assertTrue(self.db.hasdata(Root.id, include_empty=True))
 
-    def test_getdata(self):
-        self.fail()
-
-    def test_getstep(self):
-        self.fail()
-
-    def test_getfields(self):
-        self.fail()
-
-    def test_hasstep(self):
-        self.fail()
-
-    def test_hascontent(self):
-        self.fail()
-
-    def test_missing(self):
-        self.fail()
-
-    def test_delete_data(self):
-        self.fail()
-
+    def test__getdata_(self):
+        self.assertIsNone(self.db.getdata(Root.id, include_empty=False))
+        self.assertEquals(Root.id, self.db.getdata(Root.id, include_empty=True)["parent"])

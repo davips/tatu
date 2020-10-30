@@ -25,7 +25,9 @@ from unittest import TestCase
 from app import create_app, db
 from app.config import Config
 
+from aiuna.content.root import Root
 from tatu.okast import OkaSt
+from tatu.sql.sqlite import SQLite
 
 
 class TestConfig(Config):
@@ -47,6 +49,9 @@ class TestOkaSt(TestCase):
         self.app_context = self.app.app_context()
         self.app_context.push()
         db.create_all()
+        self.app.config['JWT_BLACKLIST_ENABLED'] = False
+        self.app.config['TATU_URL'] = "sqlite://:memory:"
+        self.db = SQLite(db=":memory:")
 
     def tearDown(self):
         db.session.remove()
@@ -71,48 +76,52 @@ class TestOkaSt(TestCase):
         return data["access_token"]
 
     def test__hasdata_(self):
-        self.fail()
-
-    def test__getdata_(self):
-        self.fail()
-
-    def test__hasstep_(self):
-        self.fail()
-
-    def test__getstep_(self):
-        self.fail()
-
-    def test__getfields_(self):
-        self.fail()
-
-    def test__hascontent_(self):
-        self.fail()
-
-    def test__getcontent_(self):
-        self.fail()
-
-    def test__lock_(self):
-        self.fail()
-
-    def test__unlock_(self):
-        self.fail()
-
-    def test__putdata_(self):
-        self.fail()
-
-    def test__putfields_(self):
-        self.fail()
-
-    def test__putcontent_(self):
-        self.fail()
-
-    def test__putstep_(self):
-        self.fail()
-
-    def test__uuid_(self):
-        from tatu.sql.sqlite import SQLite
-        self.app.config['JWT_BLACKLIST_ENABLED'] = False
-        self.app.config['TATU_URL'] = "sqlite://:memory:"
         with self.app.test_client() as c:
             self.create_user(c)
-            self.assertEqual(OkaSt(self.get_token(c), url=c).id, SQLite(db=":memory:").id)
+            self.assertFalse(OkaSt(self.get_token(c), url=c).hasdata("nonexistent uuid"))
+            self.assertFalse(OkaSt(self.get_token(c), url=c).hasdata(Root.id))
+            self.assertTrue(OkaSt(self.get_token(c), url=c).hasdata(Root.id, include_empty=True))
+
+    def test__getdata_(self):
+        with self.app.test_client() as c:
+            self.create_user(c)
+            self.assertIsNone(OkaSt(self.get_token(c), url=c).getdata(Root.id, include_empty=False))
+            self.assertEquals(Root.id, OkaSt(self.get_token(c), url=c).getdata(Root.id, include_empty=True)["parent"])
+
+    def test__uuid_(self):
+        with self.app.test_client() as c:
+            self.create_user(c)
+            self.assertEqual(OkaSt(self.get_token(c), url=c).id, self.db.id)
+
+    # def test__hasstep_(self):
+    #     self.fail()
+    #
+    # def test__getstep_(self):
+    #     self.fail()
+    #
+    # def test__getfields_(self):
+    #     self.fail()
+    #
+    # def test__hascontent_(self):
+    #     self.fail()
+    #
+    # def test__getcontent_(self):
+    #     self.fail()
+    #
+    # def test__lock_(self):
+    #     self.fail()
+    #
+    # def test__unlock_(self):
+    #     self.fail()
+    #
+    # def test__putdata_(self):
+    #     self.fail()
+    #
+    # def test__putfields_(self):
+    #     self.fail()
+    #
+    # def test__putcontent_(self):
+    #     self.fail()
+    #
+    # def test__putstep_(self):
+    #     self.fail()

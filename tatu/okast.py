@@ -35,25 +35,29 @@ class OkaSt(StorageInterface):
 
     def __init__(self, token, alias=None, threaded=True, url="http://localhost:5000"):
         if not isinstance(url, str):
-            self.requester = url
+            self.requests = url
             self.headers = None
         else:
-            self.requester = requests
+            self.requests = requests
             self.headers = {'Authorization': 'Bearer ' + token}
         self.url = url
         self.alias = alias
+        self.prefix = self.url if isinstance(self.url, str) else ""
         super().__init__(threaded, timeout=6)  # TODO: check if threading will destroy oka
 
     def _uuid_(self):
-        prefix = self.url if isinstance(self.url, str) else ""
-        r = self.requester.get(prefix + f"/api/sync", headers=self.headers)
+        r = self.requests.get(self.prefix + f"/api/sync", headers=self.headers)
         return UUID(j(r)["uuid"])
 
-    def _hasdata_(self, id, include_empty=True):
-        response = requests.get(self.url + f"/api/sync/{id}?dryrun=true", headers=self.headers)
+    def _hasdata_(self, id, include_empty):
+        url = self.prefix + f"/api/sync/{id}?cat=data&fetch=false&empty={include_empty}"
+        r = self.requests.get(url, headers=self.headers)
+        return j(r)["has"]
 
-    def _getdata_(self, id, include_empty=True):
-        pass
+    def _getdata_(self, id, include_empty):
+        url = self.prefix + f"/api/sync/{id}?cat=data&fetch=true&empty={include_empty}"
+        r = self.requests.get(url, headers=self.headers)
+        return j(r)
 
     def _hasstep_(self, id):
         pass
@@ -76,16 +80,16 @@ class OkaSt(StorageInterface):
     def _unlock_(self, id):
         pass
 
-    def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
+    def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup):
         pass
 
-    def _putfields_(self, rows, ignoredup=False):
+    def _putfields_(self, rows, ignoredup):
         pass
 
-    def _putcontent_(self, id, value, ignoredup=False):
+    def _putcontent_(self, id, value, ignoredup):
         pass
 
-    def _putstep_(self, id, name, path, config, dump=None, ignoredup=False):
+    def _putstep_(self, id, name, path, config, dump, ignoredup):
         pass
 
     # def _hasdata_(self, ids, include_empty=True):

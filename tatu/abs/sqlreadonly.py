@@ -20,36 +20,31 @@
 #
 from abc import ABC
 
-import pymysql
-
-from aiuna.content.data import Data
-from cruipto.uuid import UUID
 from tatu.abs.mixin.setup import withSetup
-from tatu.sql.result import Result
 from tatu.storageinterface import StorageInterface
-from transf.step import Step
 
 
 class SQLReadOnly(StorageInterface, withSetup, ABC):
-    cursor = None
     read_only = True
 
-    def _hasdata_(self, id, include_empty=True):  # TODO checar lock null?
+    def _hasdata_(self, id, include_empty):  # TODO checar lock null?
         if include_empty:
-            sql = f"select 1 from data where id=?"
+            sql, args = f"select 1 from data where id=?", [id]
         else:
             # REMINDER Inner join ensures a Data row with fields.
             nonempty = f"select 1 from data d INNER JOIN field f ON d.id=f.data where d.id=? limit 1"
             withstream = "select 1 from data where id=? and stream=1"
-            sql = f"{withstream} UNION {nonempty}"
-        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
-        return self.read(sql, [id, id], cursor=cursor).fetchone() is not None
+            sql, args = f"{withstream} UNION {nonempty}", [id, id]
+        with self.cursor() as c:
+            self.run(c, sql, args)
+            return c.fetchone() is not None
 
-    def _getdata_(self, id, include_empty=True):
+    def _getdata_(self, id, include_empty):
         cols = "step,inn,stream,parent,locked,name as field_name,content as field_id"
         sql = f"select {cols} from data d {'left' if include_empty else 'inner'} join field f on d.id=f.data where d.id=?"
-        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
-        r = self.read(sql, [id], cursor).fetchall()
+        with self.cursor() as c:
+            self.run(c, sql, [id])
+            r = c.fetchall()
         if not r:
             return
         uuids = {}
@@ -58,10 +53,14 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
                 raise Exception("Cannot get a locked Data object.")
             if row["field_name"]:
                 uuids[row["field_name"]] = row["field_id"]
-        return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"], "stream": row["stream"]}
+        return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"],
+                "stream": row["stream"]}
 
     def _getstep_(self, id):
-        row = self.read("select name,path,params from step s inner join config c on s.config=c.id where s.id=?", [id], self.connection.cursor(pymysql.cursors.DictCursor)).fetchone()
+        sql = "select name,path,params from step s inner join config c on s.config=c.id where s.id=?"
+        with self.cursor() as c:
+            self.run(c, sql, [id])
+            row = c.fetchone()
         if row is None:
             return
         desc = {"name": row["name"], "path": row["path"], "config": row["params"]}
@@ -69,165 +68,31 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
 
     def _getfields_(self, id):
         sql = f"select content as cid,value from field inner join content on content=id where data=?"
-        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
-        rows = self.read(sql, [id], cursor=cursor).fetchall()
-        return {row["cid"]: row["value"] for row in rows}  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
+        with self.cursor() as c:
+            self.run(c, sql, [id])
+            rows = c.fetchall()
+        return {row["cid"]: row["value"] for row in
+                rows}  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
 
     def _getcontent_(self, id):
         sql = f"select value from content where id=?"
-        cursor = self.connection.cursor(pymysql.cursors.DictCursor)
-        row = self.read(sql, [id], cursor=cursor).fetchone()
+        with self.cursor() as c:
+            self.run(c, sql, [id])
+            row = c.fetchone()
         return row["value"]
 
     def _hasstep_(self, id):
-        return self.read(f"select 1 from step where id=?", [id], self.connection.cursor(pymysql.cursors.DictCursor)).fetchone() is not None
+        sql = f"select 1 from step where id=?"
+        with self.cursor() as c:
+            self.run(c, sql, [id])
+            return c.fetchone() is not None
 
     def _hascontent_(self, ids):
-        return [r["id"] for r in self.read(f"select id from content where id in ({('?,' * len(ids))[:-1]})", ids, self.connection.cursor(pymysql.cursors.DictCursor)).fetchall()]
+        sql = f"select id from content where id in ({('?,' * len(ids))[:-1]})"
+        with self.cursor() as c:
+            self.run(c, sql, ids)
+            return [r["id"] for r in c.fetchall()]
 
-    # def _fetch_(self, data: Data, lock=False) -> Optional[Picklable]:
-    #     # Fetch data info.
-    #     did = data if isinstance(data, str) else data.id
-    #     self.query(f"select * from data where id=?", [did])
-    #     result = self.get_one()
-    #
-    #     # Fetch data info.
-    #     if result is None:
-    #         if lock:
-    #             self.lock(data)
-    #         return None
-    #
-    #     if result["names"] == "":
-    #         print("W: Previously locked by other process.", did)
-    #         raise LockedEntryException(did)
-    #
-    #     names = result["names"].split(",")
-    #     mids = result["fields"].split(",")
-    #     inner = result["inn"]
-    #     name_by_mid = dict(zip(mids, names))
-    #
-    #     # Fetch matrices (lazily, if storage_info is provided).
-    #     new_mids = [mid for mid in mids if isinstance(data, str) or mid not in data.ids_lst]
-    #     matrices = {} if isinstance(data, str) else data.matrices
-    #     if self.storage_info is None:
-    #         matrices_by_mid = self.fetch_dumps(new_mids)
-    #         for mid in new_mids:
-    #             matrices[name_by_mid[mid]] = matrices_by_mid[mid]
-    #     else:
-    #         for mid in new_mids:
-    #             matrices[name_by_mid[mid]] = UUID(mid)
-    #     # Fetch history.
-    #     serialized_hist = self.fetch_dumps(hids)
-    #     # REMINDER: não deserializar antes de por no histórico, pois o data.picklable manda serializado; senão, não fica picklable
-    #     #   a única forma seria implementar a travessia recusrsiva de subcomponentes para deixar como dicts (picklable) e depois jsonizar apenas aqui.
-    #     #   é preciso ver se há alguma vantagem nisso; talvez desempenho e acessibilidade de chaves dos dicts; por outro lado,
-    #     #   da forma atual o json faz tudo junto num travessia única  DECIDI fazer a travessia e só jsonizar/dejasonizar dentro de storage
-    #
-    #     # TODO: failure and timeout should be stored/fetched! ver como fica na versao lazy, tipo: é só guardar _matrices? ou algo mais?
-    #     uuids = {} if isinstance(data, str) else data.uuids
-    #     uuids.update(dict(zip(names, map(UUID, mids))))
-    #     return Picklable(uuid=UUID(did), uuids=uuids, history=serialized_hist, storage_info=self.storage_info, inner=inner, **matrices)
-    #
-    # def _fetch_children_(self, data: Data) -> List[AbsData]:
-    #     self.query(f"select id from data where parent=?", [data.id])
-    #     return [self._build_fetched("exnihilo", result) for result in self.get_all()]
-    #
-    # def fetch_field(self, id):
-    #     # TODO: quando faz select em algo que não existe, fica esperando
-    #     #  infinitamente algum lock liberar
-    #     self.query(f"select value from content where id=?", [id])
-    #     rone = self.get_one()
-    #     if rone is None:
-    #         raise Exception("Matrix not found!", id)
-    #     return unpack(rone["value"])
-    #
-    # def fetch_dumps(self, duids, aslist=False):
-    #     if len(duids) == 0:
-    #         return [] if aslist else dict()
-    #     qmarks = ",".join(["?"] * len(duids))
-    #     sql = f"select id,value from content where id in ({qmarks}) order by n"
-    #     self.query(sql, duids)
-    #     rall = self.get_all()
-    #     id_value = {row["id"]: unpack(row["value"]) for row in rall}
-    #     if aslist:
-    #         return [id_value[duid] for duid in duids]
-    #     else:
-    #         return {duid: id_value[duid] for duid in duids}
-    #
-    # @staticmethod
-    # @abstractmethod
-    # def _on_conflict(fields=None):
-    #     pass
-    #
-    # @staticmethod
-    # @abstractmethod
-    # def _keylimit():
-    #     pass
-    #
-    # @staticmethod
-    # @abstractmethod
-    # def _now_function():
-    #     pass
-    #
-    # @staticmethod
-    # @abstractmethod
-    # def _auto_incr():
-    #     pass
-    #
-    # def get_one(self) -> Optional[dict]:
-    #     """
-    #     Get a single result after a query, no more than that.
-    #     :return:
-    #     """
-    #     row = self.cursor.fetchone()
-    #     if row is None:
-    #         return None
-    #     row2 = self.cursor.fetchone()
-    #     if row2 is not None:
-    #         print("first row", row)
-    #         while row2:
-    #             print("extra row", row2)
-    #             row2 = self.cursor.fetchone()
-    #         raise Exception("  Excess of rows")
-    #     return dict(row)
-    #
-    # def get_all(self) -> list:
-    #     """
-    #     Get a list of results after a query.
-    #     :return:
-    #     """
-    #     rows = self.cursor.fetchall()
-    #     return [dict(row) for row in rows]
-    #
-    # # noinspection PyDefaultArgument
-    # def query2(self, sql, args=[], cursor=None):
-    #     if cursor is None:
-    #         cursor = self.cursor
-    #     if self.read_only and not sql.startswith("select "):
-    #         print("========================================\n", "Attempt to write onto read-only storage!", sql)
-    #         cursor.execute("select 1")
-    #         return
-    #     if self.debug:
-    #         msg = self._interpolate(sql, args)
-    #         print(self.name + ":\t>>>>> " + msg)
-    #     sql = sql.replace("?", self.placeholder)
-    #     sql = sql.replace("insert or ignore", self.insert_ignore)
-    #     # self.connection.ping(reconnect=True)
-    #     cursor.execute(sql, args)
-    #
-    # @abstractmethod
-    # def placeholder(self):
-    #     pass
-    #
-    # def __del__(self):
-    #     try:
-    #         self.connection.close()
-    #     except Exception as e:
-    #         print('Couldn\'t close database, but that\'s ok...', e)
-    #         pass
-    #
-    #
-    #
     # #     #     # From a StackOverflow answer...
     # #     #     import sys
     # #     #     import traceback
@@ -240,23 +105,16 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
     # #     #     # Re-raise a new exception of the same class as the original one
     # #     #     raise type(ex)("%s\norig. trac.:\n%s\n" % (msg, traceback_string))
 
-    def read(self, sql, args, cursor):
-        if not (sql.startswith("select ") or sql.startswith("(select ")):
-            raise Exception("========================================\n", "Attempt to write onto read-only storage!", sql)
-        self.query2(sql, args, cursor)
-        return Result(self.connection, cursor)
-
     # noinspection PyDefaultArgument
-    def query2(self, sql, args, cursor):
+    def prepare(self, sql, args=[]):
         # TODO with / catch / finalize connection?
         args = [int(c) if isinstance(c, bool) else c for c in args]
         sql = sql.replace("insert or ignore", self._insert_ignore)
         if self.debug:
             msg = self._interpolate(sql, args)
             print(self.name + ":\t>>>>> " + msg)
-        sql = sql.replace("?", self._placeholder)
         # self.connection.ping(reconnect=True)
-        return cursor.execute(sql, args)
+        return sql.replace("?", self._placeholder), args
 
     @staticmethod
     def _interpolate(sql, lst0):
