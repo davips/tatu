@@ -1,23 +1,25 @@
 #  Copyright (c) 2020. Davi Pereira dos Santos
-#      This file is part of the tatu project.
-#      Please respect the license. Removing authorship by any means
-#      (by code make up or closing the sources) or ignoring property rights
-#      is a crime and is unethical regarding the effort and time spent here.
-#      Relevant employers or funding agencies will be notified accordingly.
+#  This file is part of the tatu project.
+#  Please respect the license - more about this in the section (*) below.
 #
-#      tatu is free software: you can redistribute it and/or modify
-#      it under the terms of the GNU General Public License as published by
-#      the Free Software Foundation, either version 3 of the License, or
-#      (at your option) any later version.
+#  tatu is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
 #
-#      tatu is distributed in the hope that it will be useful,
-#      but WITHOUT ANY WARRANTY; without even the implied warranty of
-#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#      GNU General Public License for more details.
+#  tatu is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
 #
-#      You should have received a copy of the GNU General Public License
-#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
+#  You should have received a copy of the GNU General Public License
+#  along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
+#  (*) Removing authorship by any means, e.g. by distribution of derived
+#  works or verbatim, obfuscated, compiled or rewritten versions of any
+#  part of this work is a crime and is unethical regarding the effort and
+#  time spent here.
+#  Relevant employers or funding agencies will be notified accordingly.
 from abc import ABC
 from sqlite3 import IntegrityError
 
@@ -107,11 +109,11 @@ class SQL(SQLReadOnly, ABC):
     #     rone = self.get_one()
     #
     #     if rone:
-    #         locked = rone["t"] == "0000-00-00 00:00:00"
-    #         if check_dup:
-    #             raise DuplicateEntryException("Already exists:", uuid.id)
+    #     locked = rone["t"] == "0000-00-00 00:00:00"
+    #     if check_dup:
+    #         raise DuplicateEntryException("Already exists:", uuid.id)
     #     else:
-    #         locked = False
+    #     locked = False
     #
     #     # Check if dumps of matrices/vectors already exist.
     #     qmarks = ",".join(["?"] * len(data.uuids))
@@ -122,8 +124,8 @@ class SQL(SQLReadOnly, ABC):
     #     # Insert only matrices that are missing in storage
     #     dic = {}
     #     for name, u in data.uuids.items():
-    #         if u.id not in stored_hashes:
-    #             dic[u.id] = data.field_dump(name)
+    #     if u.id not in stored_hashes:
+    #         dic[u.id] = data.field_dump(name)
     #     self.store_dump(dic)
     #
     #     # Insert history.
@@ -132,15 +134,15 @@ class SQL(SQLReadOnly, ABC):
     #
     #     # Insert Data object.
     #     if not locked:
-    #         # ensure UNIQUE constraint (just in case something changed in the meantime since select*)
-    #         if check_dup:
-    #             sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
-    #         else:
-    #             sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
-    #         data_args = [uuid.id, data.inner and data.inner.id, parentid, data.matrix_names_str, data.ids_str, data.history.last.id]
+    #     # ensure UNIQUE constraint (just in case something changed in the meantime since select*)
+    #     if check_dup:
+    #         sql = f"insert into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
     #     else:
-    #         sql = f"update data set inn=?, parent=?, names=?, fields=?, history=?, t={self._now_function()} where id=?"
-    #         data_args = [data.inner and data.inner.id, data.parent_uuid.id, data.matrix_names_str, data.ids_str, data.history.last.id, uuid.id]
+    #         sql = f"replace into data values (NULL, ?, ?, ?, ?, ?, ?, {self._now_function()})"
+    #     data_args = [uuid.id, data.inner and data.inner.id, parentid, data.matrix_names_str, data.ids_str, data.history.last.id]
+    #     else:
+    #     sql = f"update data set inn=?, parent=?, names=?, fields=?, history=?, t={self._now_function()} where id=?"
+    #     data_args = [data.inner and data.inner.id, data.parent_uuid.id, data.matrix_names_str, data.ids_str, data.history.last.id, uuid.id]
     #     # from sqlite3 import IntegrityError as IntegrityErrorSQLite
     #     # from pymysql import IntegrityError as IntegrityErrorMySQL
     #     # try:
@@ -165,13 +167,13 @@ class SQL(SQLReadOnly, ABC):
     #
     #     # Fetch data info.
     #     if result is None:
-    #         if lock:
-    #             self.lock(data)
-    #         return None
+    #     if lock:
+    #         self.lock(data)
+    #     return None
     #
     #     if result["names"] == "":
-    #         print("W: Previously locked by other process.", did)
-    #         raise LockedEntryException(did)
+    #     print("W: Previously locked by other process.", did)
+    #     raise LockedEntryException(did)
     #
     #     names = result["names"].split(",")
     #     mids = result["fields"].split(",")
@@ -182,12 +184,12 @@ class SQL(SQLReadOnly, ABC):
     #     new_mids = [mid for mid in mids if isinstance(data, str) or mid not in data.ids_lst]
     #     matrices = {} if isinstance(data, str) else data.matrices
     #     if self.storage_info is None:
-    #         matrices_by_mid = self.fetch_dumps(new_mids)
-    #         for mid in new_mids:
-    #             matrices[name_by_mid[mid]] = matrices_by_mid[mid]
+    #     matrices_by_mid = self.fetch_dumps(new_mids)
+    #     for mid in new_mids:
+    #         matrices[name_by_mid[mid]] = matrices_by_mid[mid]
     #     else:
-    #         for mid in new_mids:
-    #             matrices[name_by_mid[mid]] = UUID(mid)
+    #     for mid in new_mids:
+    #         matrices[name_by_mid[mid]] = UUID(mid)
     #     # Fetch history.
     #     serialized_hist = self.fetch_dumps(hids)
     #     # REMINDER: não deserializar antes de por no histórico, pois o data.picklable manda serializado; senão, não fica picklable
@@ -210,21 +212,21 @@ class SQL(SQLReadOnly, ABC):
     #     self.query(f"select value from content where id=?", [id])
     #     rone = self.get_one()
     #     if rone is None:
-    #         raise Exception("Matrix not found!", id)
+    #     raise Exception("Matrix not found!", id)
     #     return unpack(rone["value"])
     #
     # def fetch_dumps(self, duids, aslist=False):
     #     if len(duids) == 0:
-    #         return [] if aslist else dict()
+    #     return [] if aslist else dict()
     #     qmarks = ",".join(["?"] * len(duids))
     #     sql = f"select id,value from content where id in ({qmarks}) order by n"
     #     self.query(sql, duids)
     #     rall = self.get_all()
     #     id_value = {row["id"]: unpack(row["value"]) for row in rall}
     #     if aslist:
-    #         return [id_value[duid] for duid in duids]
+    #     return [id_value[duid] for duid in duids]
     #     else:
-    #         return {duid: id_value[duid] for duid in duids}
+    #     return {duid: id_value[duid] for duid in duids}
     #
     # def _unlock_(self, data):
     #     # locked = rone and rone['t'] == '0000-00-00 00:00:00'
@@ -237,8 +239,8 @@ class SQL(SQLReadOnly, ABC):
     #     from tatu.sql.sqlite import SQLite
     #     lst = [(duid, memoryview(dump) if isinstance(self, SQLite) else dump) for duid, dump in lst.items()]
     #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore")
-    #         self.insert_many(lst, "content")
+    #     warnings.simplefilter("ignore")
+    #     self.insert_many(lst, "content")
     #
     # def lock(self, data):
     #     # REMINDER relaxing constraints
@@ -246,7 +248,7 @@ class SQL(SQLReadOnly, ABC):
     #     #     raise Exception("Cannot lock only by data UUID, a Data object is required because the data parent UUID is needed by DBMS constraints.")
     #     did, pid = data.id, data.parent_uuid.id
     #     if self.debug:
-    #         print("Locking...", did)
+    #     print("Locking...", did)
     #
     #     sql = f"insert into data values (null,?,?,?,?,?,?,'0000-00-00 00:00:00')"
     #     args = [did, "", pid, "", "", ""]
@@ -254,22 +256,22 @@ class SQL(SQLReadOnly, ABC):
     #     from pymysql import IntegrityError as IntegrityErrorMySQL
     #
     #     try:  # REMINDER that exception would be on the way of mysql lock() due to inner 'inn' field FK constraint
-    #         self.query(sql, args)
+    #     self.query(sql, args)
     #     except IntegrityErrorSQLite as e:
-    #         print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
-    #         exit()
+    #     print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+    #     exit()
     #     except IntegrityErrorMySQL as e:
-    #         print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
-    #         exit()
+    #     print(f"Unexpected lock! " f"Giving up my turn on {did} ppy/se", e)
+    #     exit()
     #     else:
-    #         print(f"Now locked for {did}")
+    #     print(f"Now locked for {did}")
     #
     # def __del__(self):
     #     try:
-    #         self.connection.close()
+    #     self.connection.close()
     #     except Exception as e:
-    #         # print('Couldn\'t close database, but that\'s ok...', e)
-    #         pass
+    #     # print('Couldn\'t close database, but that\'s ok...', e)
+    #     pass
 
     # def _update_remote_(self, storage):
     #     stid = storage.id
@@ -280,35 +282,35 @@ class SQL(SQLReadOnly, ABC):
     #     self.query(f"select id from data where n > {lastn} order by n")
     #     cursor2 = self.connection.cursor(pymysql.cursors.DictCursor)()
     #     for row0 in self.cursor:
-    #         did = row0["id"]
+    #     did = row0["id"]
     #
-    #         # em que ordem inserir isso?  col n é importante p/ pegar datas apos o ultimo. do data da p/ saber o resto
-    #         # a ordem original de datas garante integridade na inserção remota
-    #         # has stream
-    #         # has step
-    #         # has config
-    #         # has content
+    #     # em que ordem inserir isso?  col n é importante p/ pegar datas apos o ultimo. do data da p/ saber o resto
+    #     # a ordem original de datas garante integridade na inserção remota
+    #     # has stream
+    #     # has step
+    #     # has config
+    #     # has content
     #
-    #         if not storage.hasdata(did):
-    #             # Get rest of data info.
-    #             self.query(f"select * from data where id=?", [did], cursor2)
-    #             row = dict(cursor2.fetchone())
+    #     if not storage.hasdata(did):
+    #         # Get rest of data info.
+    #         self.query(f"select * from data where id=?", [did], cursor2)
+    #         row = dict(cursor2.fetchone())
     #
-    #             # Send fields
-    #             for fieldid in row["fields"].split(",") + row["history"].split(","):
-    #                 if not storage.hascontent(fieldid):
-    #                     self.query("select id, value from content where id=?", [fieldid], cursor2)
-    #                     storage.putcontent(**cursor2.fetchone())
+    #         # Send fields
+    #         for fieldid in row["fields"].split(",") + row["history"].split(","):
+    #             if not storage.hascontent(fieldid):
+    #                 self.query("select id, value from content where id=?", [fieldid], cursor2)
+    #                 storage.putcontent(**cursor2.fetchone())
     #
-    #             # Send data.
-    #             del row["n"]
-    #             del row["t"]
-    #             storage.putdata(**row)
+    #         # Send data.
+    #         del row["n"]
+    #         del row["t"]
+    #         storage.putdata(**row)
     #
-    #             # Update table sync as soon as possible, to behave well in case of interruption of a long list of inserts.
-    #             # TODO a single query to insert / update
-    #             self.query(f"delete from sync where storage=?", [stid], cursor2)
-    #             self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
+    #         # Update table sync as soon as possible, to behave well in case of interruption of a long list of inserts.
+    #         # TODO a single query to insert / update
+    #         self.query(f"delete from sync where storage=?", [stid], cursor2)
+    #         self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
 
     def write_many(self, cursor, list_of_tuples, table):
         sql = f"{self._insert_ignore} INTO {table} VALUES({('?,' * len(list_of_tuples[0]))[:-1]})"

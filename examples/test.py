@@ -34,8 +34,8 @@ for phantom in lst:
 
 # Testes            ############################
 # data = Data(X=np.array([[1, 2, 3, 4], [5, 6, 7, 8]]),
-#             Y=np.array([[1, 2, 3, 4]]),
-#             name='flowers', desc='Beautiful description.')
+#         Y=np.array([[1, 2, 3, 4]]),
+#         name='flowers', desc='Beautiful description.')
 # # Xd={'length': 'R', 'width': 'R'}, Yd={'class': ['M', 'F']}
 
 # Teste de gravação ############################

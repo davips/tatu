@@ -3,6 +3,7 @@ import random
 from tatu.sql.mysql import MySQL
 import requests
 
+
 def user(username=None, password=None, email=None, base_url="http://localhost:5000"):
     """Create a new user."""
 

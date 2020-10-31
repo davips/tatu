@@ -1,23 +1,25 @@
 #  Copyright (c) 2020. Davi Pereira dos Santos
-#      This file is part of the tatu project.
-#      Please respect the license. Removing authorship by any means
-#      (by code make up or closing the sources) or ignoring property rights
-#      is a crime and is unethical regarding the effort and time spent here.
-#      Relevant employers or funding agencies will be notified accordingly.
+#  This file is part of the tatu project.
+#  Please respect the license - more about this in the section (*) below.
 #
-#      tatu is free software: you can redistribute it and/or modify
-#      it under the terms of the GNU General Public License as published by
-#      the Free Software Foundation, either version 3 of the License, or
-#      (at your option) any later version.
+#  tatu is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
 #
-#      tatu is distributed in the hope that it will be useful,
-#      but WITHOUT ANY WARRANTY; without even the implied warranty of
-#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#      GNU General Public License for more details.
+#  tatu is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
 #
-#      You should have received a copy of the GNU General Public License
-#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
+#  You should have received a copy of the GNU General Public License
+#  along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
+#  (*) Removing authorship by any means, e.g. by distribution of derived
+#  works or verbatim, obfuscated, compiled or rewritten versions of any
+#  part of this work is a crime and is unethical regarding the effort and
+#  time spent here.
+#  Relevant employers or funding agencies will be notified accordingly.
 from abc import abstractmethod, ABC
 from contextlib import contextmanager
 
@@ -97,7 +99,7 @@ class withSetup(ABC):
         # REMINDER char automatically pads with spaces but ignores them when comparing, perfect instead of varchar that
         # is slower
         # REMINDER field char(24) is almost arbitrary, perhaps someone wants to name a field with a uuid;
-        #          23+1 just shows that it is not a uuid column.
+        #      23+1 just shows that it is not a uuid column.
 
         # Table for field contents (matrices, ...) and dumps (pickled models, ...).
         sql = "create table if not exists content (id char(23) NOT NULL primary key, value LONGBLOB NOT NULL)"
@@ -219,7 +221,7 @@ class withSetup(ABC):
         # Table to record volatile info, i.e. related to a specific run of a step*
         #     (e.g. person specific or several runs to assess time).
         # 'id' here is a universal time based UUID(),
-        #       instead of being based on a hash or on a multiplication like the other ones.
+        #   instead of being based on a hash or on a multiplication like the other ones.
         # * -> related to a specific generation of a Data object - more precisely.
         #  Many rows can exist for the same Data object.
         # 'alive': time of last ping from 'node'

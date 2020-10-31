@@ -1,1 +1,1 @@
-from main.tatu import Tatu
+from tatu.main import Tatu

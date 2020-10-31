@@ -1,23 +1,25 @@
 #  Copyright (c) 2020. Davi Pereira dos Santos
-#      This file is part of the tatu project.
-#      Please respect the license. Removing authorship by any means
-#      (by code make up or closing the sources) or ignoring property rights
-#      is a crime and is unethical regarding the effort and time spent here.
-#      Relevant employers or funding agencies will be notified accordingly.
+#  This file is part of the tatu project.
+#  Please respect the license - more about this in the section (*) below.
 #
-#      tatu is free software: you can redistribute it and/or modify
-#      it under the terms of the GNU General Public License as published by
-#      the Free Software Foundation, either version 3 of the License, or
-#      (at your option) any later version.
+#  tatu is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
 #
-#      tatu is distributed in the hope that it will be useful,
-#      but WITHOUT ANY WARRANTY; without even the implied warranty of
-#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#      GNU General Public License for more details.
+#  tatu is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
 #
-#      You should have received a copy of the GNU General Public License
-#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
+#  You should have received a copy of the GNU General Public License
+#  along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
+#  (*) Removing authorship by any means, e.g. by distribution of derived
+#  works or verbatim, obfuscated, compiled or rewritten versions of any
+#  part of this work is a crime and is unethical regarding the effort and
+#  time spent here.
+#  Relevant employers or funding agencies will be notified accordingly.
 
 import requests
 
@@ -97,7 +99,7 @@ class OkaSt(StorageInterface):
     #     content = response.text
     #     print(response.text)
     #     if "errors" in content:
-    #         raise Exception("Invazxczvzxvxzlid token", content, self.url + f"/api/sync/{id}")
+    #     raise Exception("Invazxczvzxvxzlid token", content, self.url + f"/api/sync/{id}")
     #     return content
 
     # # api/sync?cat=data&uuid=ua&uuid=ub&empty=0  ->  lista de dicts
@@ -105,7 +107,7 @@ class OkaSt(StorageInterface):
     #     response = requests.get(self.url + f"/api/tatu?uuid={id}", headers=self.headers)
     #     content = response.content
     #     if b"errors" in content:
-    #         raise Exception("Invalid token", content, self.url + f"?uuid={did}")
+    #     raise Exception("Invalid token", content, self.url + f"?uuid={did}")
     #     return content
 
     # # api/sync  ->  string
@@ -113,7 +115,7 @@ class OkaSt(StorageInterface):
     #     # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
     #     response = requests.get(self.url + f"/api/tatu?uuid=storage", headers=self.headers)
     #     if b"errors" in response.content:
-    #         raise Exception("Invalid token", response.content, self.url + f"?uuid=storage")
+    #     raise Exception("Invalid token", response.content, self.url + f"?uuid=storage")
     #     return UUID(json.loads(response.text)["uuid"])
 
     # # api/sync?cat=data&uuid=ua  ->  sucesso?
@@ -127,8 +129,8 @@ class OkaSt(StorageInterface):
     #     #  TODO: enviar por field
     #     #  TODO: override store() para evitar travessia na classe mãe?
     #     files = {
-    #         'json': BytesIO(json.dumps({'alias': self.alias}).encode()),
-    #         'file': BytesIO(packed)
+    #     'json': BytesIO(json.dumps({'alias': self.alias}).encode()),
+    #     'file': BytesIO(packed)
     #     }
     #     r = requests.post(self.url + "/api/tatu", files=files, headers=self.headers)
     #     pass
