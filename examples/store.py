@@ -1,5 +1,5 @@
 from aiuna.compression import pack
-from aiuna.file import File
+from aiuna.step.file import File
 
 from tatu.sql.mysql import MySQL
 

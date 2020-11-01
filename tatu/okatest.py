@@ -23,9 +23,9 @@
 
 import json
 
-from aiuna.file import File
+from aiuna.step.file import File
 from tatu.okast import OkaSt
-from aiuna.creation import read_arff
+from aiuna.content.creation import read_arff
 
 with open("token.txt", "r") as f:
     token = json.load(f)["token"]

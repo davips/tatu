@@ -26,9 +26,9 @@ from abc import ABC, abstractmethod
 from aiuna.compression import unpack, pack
 from aiuna.content.data import Data
 from aiuna.content.root import Root
-from aiuna.delete import Del
+from aiuna.step.delete import Del
 from aiuna.history import History
-from aiuna.new import New
+from aiuna.step.new import New
 from cruipto.uuid import UUID
 from linalghelper import islazy
 from tatu.abs.mixin.thread import asThread

@@ -180,7 +180,7 @@ class Pickle(StorageInterface):
 
 def sqlite_Test():
     from tatu.sql.sqlite import SQLite
-    from aiuna.file import File
+    from aiuna.step.file import File
     data = File("iris.arff").data
     SQLite().delete(data, check_missing=False)
     SQLite().store(data)

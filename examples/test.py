@@ -4,7 +4,7 @@ from zipfile import ZipFile
 from tatu.storageinterface import DuplicateEntryException
 from tatu.pickle_ import Pickle
 from tatu.sql.mysql import MySQL
-from aiuna.creation import read_arff
+from aiuna.content.creation import read_arff
 
 lst = Pickle().list_by_name('iris')
 for phantom in lst:
