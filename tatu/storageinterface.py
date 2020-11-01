@@ -125,8 +125,8 @@ class StorageInterface(asThread, Storage, ABC):
                     if id in puts:
                         if k != "inner":
                             self.putcontent(id, pack(v))
-                self.putfields(
-                    [(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items() if fname != "inner"])
+                rows = [(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items() if fname != "inner"]
+                self.putfields(rows)
                 return held_data.field_funcs_m[name]
 
             return lamb

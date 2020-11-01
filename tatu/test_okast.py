@@ -28,8 +28,10 @@ from app import create_app, db
 from app.config import Config
 
 from aiuna.content.root import Root
+from aiuna.step.dataset import Dataset
 from tatu.okast import OkaSt
 from tatu.sql.sqlite import SQLite
+from transf.noop import NoOp
 
 
 class TestConfig(Config):
@@ -54,6 +56,8 @@ class TestOkaSt(TestCase):
         self.app.config['JWT_BLACKLIST_ENABLED'] = False
         self.app.config['TATU_URL'] = "sqlite://:memory:"
         self.db = SQLite(db=":memory:")
+        self.iris = Dataset().data
+        self.db.store(self.iris, ignoredup=True)
 
     def tearDown(self):
         db.session.remove()
@@ -80,32 +84,51 @@ class TestOkaSt(TestCase):
     def test__hasdata_(self):
         with self.app.test_client() as c:
             self.create_user(c)
-            self.assertFalse(OkaSt(self.get_token(c), url=c).hasdata("nonexistent uuid"))
-            self.assertFalse(OkaSt(self.get_token(c), url=c).hasdata(Root.id))
-            self.assertTrue(OkaSt(self.get_token(c), url=c).hasdata(Root.id, include_empty=True))
+            o = OkaSt(self.get_token(c), url=c)
+            self.assertFalse(o.hasdata("nonexistent uuid"))
+            self.assertFalse(o.hasdata(Root.id))
+            self.assertTrue(o.hasdata(Root.id, include_empty=True))
 
     def test__getdata_(self):
         with self.app.test_client() as c:
             self.create_user(c)
-            self.assertIsNone(OkaSt(self.get_token(c), url=c).getdata(Root.id, include_empty=False))
-            self.assertEquals(Root.id, OkaSt(self.get_token(c), url=c).getdata(Root.id, include_empty=True)["parent"])
+            o = OkaSt(self.get_token(c), url=c)
+            self.assertIsNone(o.getdata(Root.id, include_empty=False))
+            self.assertEquals(Root.id, o.getdata(Root.id, include_empty=True)["parent"])
 
     def test__uuid_(self):
         with self.app.test_client() as c:
             self.create_user(c)
-            self.assertEqual(OkaSt(self.get_token(c), url=c).id, self.db.id)
+            o = OkaSt(self.get_token(c), url=c)
+            self.assertEqual(o.id, self.db.id)
 
-    # def test__hasstep_(self):
-    #     self.fail()
-    #
-    # def test__getstep_(self):
-    #     self.fail()
-    #
+    def test__hasstep_(self):
+        with self.app.test_client() as c:
+            self.create_user(c)
+            o = OkaSt(self.get_token(c), url=c)
+            self.assertFalse(o.hasstep("nonexistent uuid"))
+            self.assertTrue(o.hasstep(NoOp().id))
+
+    def test__getstep_(self):
+        with self.app.test_client() as c:
+            self.create_user(c)
+            o = OkaSt(self.get_token(c), url=c)
+            self.assertIsNone(o.getstep("nonexistent uuid"))
+            self.assertEquals(NoOp().context, o.getstep(NoOp().id)["path"])
+
     # def test__getfields_(self):
-    #     self.fail()
-    #
+    #     with self.app.test_client() as c:
+    #         self.create_user(c)
+    #         o = OkaSt(self.get_token(c), url=c)
+    #         self.assertDictEqual(o.getfields(Root.id), {})
+            # self.assertEquals(self.iris.asdict, o.getfields(self.iris.id))
+
     # def test__hascontent_(self):
-    #     self.fail()
+    #     with self.app.test_client() as c:
+    #         self.create_user(c)
+    #         o = OkaSt(self.get_token(c), url=c)
+    #         self.assertFalse(o.hascontent("nonexistent uuid"))
+    #         self.assertTrue(o.hascontent([self.iris.uuids["X"]]))
     #
     # def test__getcontent_(self):
     #     self.fail()
@@ -122,8 +145,12 @@ class TestOkaSt(TestCase):
     # def test__putfields_(self):
     #     self.fail()
     #
-    # def test__putcontent_(self):
-    #     self.fail()
+    def test__putcontent_(self):
+        with self.app.test_client() as c:
+            self.create_user(c)
+            o = OkaSt(self.get_token(c), url=c)
+            self.assertTrue(o.putcontent(self.iris.uuids["X"], self.iris.X))
+            self.assertTrue((o.getcontent(self.iris.uuids["X"]) == self.iris.X).all)
     #
     # def test__putstep_(self):
     #     self.fail()

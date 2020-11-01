@@ -20,9 +20,11 @@
 #  part of this work is a crime and is unethical regarding the effort and
 #  time spent here.
 #  Relevant employers or funding agencies will be notified accordingly.
+from io import BytesIO
 
 import requests
 
+from aiuna.compression import pack
 from cruipto.uuid import UUID
 from tatu.storageinterface import StorageInterface
 
@@ -33,7 +35,7 @@ def j(r):
 
 
 class OkaSt(StorageInterface):
-    """se data já existir, não tenta criar post!"""
+    """Central remote storage"""
 
     def __init__(self, token, alias=None, threaded=True, url="http://localhost:5000"):
         if not isinstance(url, str):
@@ -62,16 +64,25 @@ class OkaSt(StorageInterface):
         return j(r)
 
     def _hasstep_(self, id):
-        pass
+        url = self.prefix + f"/api/sync/{id}?cat=step&fetch=false"
+        r = self.requests.get(url, headers=self.headers)
+        return j(r)["has"]
 
     def _getstep_(self, id):
-        pass
+        url = self.prefix + f"/api/sync/{id}?cat=step&fetch=true"
+        r = self.requests.get(url, headers=self.headers)
+        return j(r)
 
     def _getfields_(self, id):
-        pass
+        url = self.prefix + f"/api/sync/{id}/content"
+        r = self.requests.get(url, headers=self.headers)
+        return j(r)
 
     def _hascontent_(self, ids):
         pass
+    #     url = self.prefix + f"/api/sync/{}?cat=content&fetch=false"
+    #     r = self.requests.get(url, headers=self.headers)
+    #     return j(r)["has"]
 
     def _getcontent_(self, id):
         pass
@@ -89,7 +100,10 @@ class OkaSt(StorageInterface):
         pass
 
     def _putcontent_(self, id, value, ignoredup):
-        pass
+        url = self.prefix + f"/api/sync/{id}/content"
+        packed = pack(value)
+        r = requests.post(url, files={'file': BytesIO(packed)}, headers=self.headers)
+        print(2222222222222222222222222, r)
 
     def _putstep_(self, id, name, path, config, dump, ignoredup):
         pass
