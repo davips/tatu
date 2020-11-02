@@ -71,7 +71,7 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
     def _getfields_(self, id):
         sql = f"select content as cid,value from field inner join content on content=id where data=?"
         with self.cursor() as c:
-            self.run(c, sql, [id])
+            self.run(c, sql, id)
             rows = c.fetchall()
         return {row["cid"]: row["value"] for row in
                 rows}  # TODO retornar iterator; pra isso, precisa de uma conexão fora da thread, e gets são bloqueantes anyway
@@ -81,7 +81,7 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
         with self.cursor() as c:
             self.run(c, sql, [id])
             row = c.fetchone()
-        return row["value"]
+        return row and row["value"]
 
     def _hasstep_(self, id):
         sql = f"select 1 from step where id=?"

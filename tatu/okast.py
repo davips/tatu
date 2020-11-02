@@ -74,7 +74,7 @@ class OkaSt(StorageInterface):
         return j(r)
 
     def _getfields_(self, id):
-        url = self.prefix + f"/api/sync/{id}/content"
+        url = self.prefix + f"/api/sync/{id}/fields"
         r = self.requests.get(url, headers=self.headers)
         return j(r)
 
@@ -85,7 +85,12 @@ class OkaSt(StorageInterface):
     #     return j(r)["has"]
 
     def _getcontent_(self, id):
-        return NotImplemented
+        url = self.prefix + f"/api/sync/{id}/content"
+        r = self.requests.get(url, headers=self.headers)
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(r.data)
+        exit()
+        return r.content
 
     def _lock_(self, id):
         url = self.prefix + f"/api/sync/{id}/lock"

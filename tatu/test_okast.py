@@ -126,7 +126,7 @@ class TestOkaSt(TestCase):
             self.assertDictEqual(o.getfields(Root.id), {})
             self.assertEquals({k: pack(v) for k, v in self.iris.items()}, o.getfields(self.iris.id))
 
-    def test__hascontent_(self):  # bool []
+    def test__hascontent_(self):  # entra e sai lista de str-uuids []
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
@@ -138,7 +138,7 @@ class TestOkaSt(TestCase):
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
             self.assertFalse(o.getcontent("nonexistent uuid"))
-            self.assertEquals(o.getcontent([self.iris.uuids["X"].id]), pack(self.iris.X))
+            self.assertEquals(o.getcontent(self.iris.uuids["X"].id), pack(self.iris.X))
 
     def test__lock_(self):  # bool []
         iris2 = self.iris >> Binarize()
