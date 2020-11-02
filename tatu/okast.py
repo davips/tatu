@@ -79,34 +79,38 @@ class OkaSt(StorageInterface):
         return j(r)
 
     def _hascontent_(self, ids):
-        pass
+        return NotImplemented
     #     url = self.prefix + f"/api/sync/{}?cat=content&fetch=false"
     #     r = self.requests.get(url, headers=self.headers)
     #     return j(r)["has"]
 
     def _getcontent_(self, id):
-        pass
+        return NotImplemented
 
     def _lock_(self, id):
-        pass
+        url = self.prefix + f"/api/sync/{id}/lock"
+        r = self.requests.put(url, headers=self.headers)
+        # return j(r)
+        return NotImplemented
 
     def _unlock_(self, id):
-        pass
+        return NotImplemented
 
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup):
-        pass
+        return NotImplemented
 
     def _putfields_(self, rows, ignoredup):
-        pass
+        return NotImplemented
 
     def _putcontent_(self, id, value, ignoredup):
         url = self.prefix + f"/api/sync/{id}/content"
         packed = pack(value)
         r = requests.post(url, files={'file': BytesIO(packed)}, headers=self.headers)
         print(2222222222222222222222222, r)
+        return NotImplemented
 
     def _putstep_(self, id, name, path, config, dump, ignoredup):
-        pass
+        return NotImplemented
 
     # def _hasdata_(self, ids, include_empty=True):
     #     response = requests.get(self.url + f"/api/sync/{id}?dryrun=true", headers=self.headers)
@@ -150,8 +154,7 @@ class OkaSt(StorageInterface):
     #     pass
 
     def _deldata_(self, id):
-        raise Exception(f"OkaSt cannot delete Data objects! HINT: deactivate post {id} it on Oka")
+        raise Exception(f"OkaSt cannot delete Data entries! HINT: deactivate post {id} on Oka.")
 
-    # ################################################################################
     def _open_(self):
-        pass
+        pass  # nothing to open for okast
