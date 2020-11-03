@@ -27,7 +27,7 @@ from unittest import TestCase
 from app import create_app, db
 from app.config import Config
 
-from aiuna.compression import pack, unpack
+from aiuna.compression import unpack, pack
 from aiuna.content.root import Root
 from aiuna.step.dataset import Dataset
 from kururu.tool.enhancement.binarize import Binarize
@@ -90,6 +90,7 @@ class TestOkaSt(TestCase):
             self.assertFalse(o.hasdata("nonexistent uuid"))
             self.assertFalse(o.hasdata(Root.id))
             self.assertTrue(o.hasdata(Root.id, include_empty=True))
+            self.assertTrue(o.hasdata(self.iris.id))
 
     def test__getdata_(self):  # None or jsonable dict [ok]
         with self.app.test_client() as c:
@@ -130,10 +131,10 @@ class TestOkaSt(TestCase):
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
-            self.assertFalse(o.hascontent("nonexistent uuid"))
-            self.assertTrue(o.hascontent([self.iris.uuids["X"].id]))
+            self.assertListEqual(o.hascontent(["nonexistent uuid"]), [])
+            self.assertListEqual(o.hascontent([self.iris.uuids["X"].id]), [self.iris.uuids["X"].id])
 
-    def test__getcontent_(self):  # None or binary []
+    def test__getcontent_(self):  # None or binary [ok]
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
@@ -212,3 +213,4 @@ class TestOkaSt(TestCase):
                 "config": {}
             }
             self.assertTrue(o.putstep(**dic))
+

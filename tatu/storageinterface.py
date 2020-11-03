@@ -23,18 +23,14 @@
 import json
 from abc import ABC, abstractmethod
 
-from aiuna.compression import unpack, pack
+from aiuna.compression import unpack, fpack
 from aiuna.content.data import Data
 from aiuna.content.root import Root
-from aiuna.step.delete import Del
 from aiuna.history import History
-from aiuna.step.new import New
 from cruipto.uuid import UUID
 from linalghelper import islazy
 from tatu.abs.mixin.thread import asThread
 from tatu.abs.storage import Storage
-from transf.mixin.identification import withIdentification
-from transf.noop import NoOp
 from transf.step import Step
 
 
@@ -124,7 +120,7 @@ class StorageInterface(asThread, Storage, ABC):
                     id = held_data.uuids[k].id
                     if id in puts:
                         if k != "inner":
-                            self.putcontent(id, pack(v))
+                            self.putcontent(id, fpack(held_data, k))
                 rows = [(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items() if fname != "inner"]
                 self.putfields(rows)
                 return held_data.field_funcs_m[name]
@@ -145,7 +141,7 @@ class StorageInterface(asThread, Storage, ABC):
                 for k, v in data.items():
                     id = data.uuids[k].id
                     if id in missing:
-                        content = v.id.encode() if k == "inner" else pack(v)
+                        content = v.id.encode() if k == "inner" else fpack(data, k)
                         self.putcontent(id, content)
 
             lst.append(data)

@@ -1,4 +1,4 @@
-#  Copyright (c) 2020. Davi Pereira dos Santos
+#  Copyright (c) 2020. Davi Pereira dos Santos and Rafael Amatte Bisão
 #  This file is part of the tatu project.
 #  Please respect the license - more about this in the section (*) below.
 #
@@ -20,11 +20,9 @@
 #  part of this work is a crime and is unethical regarding the effort and
 #  time spent here.
 #  Relevant employers or funding agencies will be notified accordingly.
-from io import BytesIO
 
 import requests
 
-from aiuna.compression import pack
 from cruipto.uuid import UUID
 from tatu.storageinterface import StorageInterface
 
@@ -80,22 +78,19 @@ class OkaSt(StorageInterface):
 
     def _hascontent_(self, ids):
         return NotImplemented
-    #     url = self.prefix + f"/api/sync/{}?cat=content&fetch=false"
-    #     r = self.requests.get(url, headers=self.headers)
-    #     return j(r)["has"]
+        # url = self.prefix + f"/api/syncaaaaaaaa?cat=content&fetch=false"
+        # r = self.requests.get(url, headers=self.headers)
+        # return j(r)["has"]
 
     def _getcontent_(self, id):
         url = self.prefix + f"/api/sync/{id}/content"
         r = self.requests.get(url, headers=self.headers)
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print(r.data)
-        exit()
-        return r.content
+        return None if r.data == b'null\n' else r.data
 
     def _lock_(self, id):
-        url = self.prefix + f"/api/sync/{id}/lock"
-        r = self.requests.put(url, headers=self.headers)
-        # return j(r)
+        # url = self.prefix + f"/api/sync/{id}/lock"
+        # r = self.requests.put(url, headers=self.headers)
+        # # return j(r)
         return NotImplemented
 
     def _unlock_(self, id):
@@ -108,10 +103,10 @@ class OkaSt(StorageInterface):
         return NotImplemented
 
     def _putcontent_(self, id, value, ignoredup):
-        url = self.prefix + f"/api/sync/{id}/content"
-        packed = pack(value)
-        r = requests.post(url, files={'file': BytesIO(packed)}, headers=self.headers)
-        print(2222222222222222222222222, r)
+        # url = self.prefix + f"/api/sync/{id}/content"
+        # packed = fpack(value)
+        # r = requests.post(url, files={'file': BytesIO(packed)}, headers=self.headers)
+        # print(2222222222222222222222222, r)
         return NotImplemented
 
     def _putstep_(self, id, name, path, config, dump, ignoredup):

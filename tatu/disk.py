@@ -21,7 +21,7 @@
 #  time spent here.
 #  Relevant employers or funding agencies will be notified accordingly.
 
-from aiuna.compression import pack, unpack
+from aiuna.compression import unpack, pack
 
 
 def save(filename, obj):
