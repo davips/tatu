@@ -146,7 +146,7 @@ class TestOkaSt(TestCase):
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
-            self.assertFalse(o.lock("nonexistent uuid"))
+            # self.assertFalse(o.lock(self.iris.id, check_existence=False))
             self.assertTrue(o.lock(iris2.id))
 
     def test__unlock_(self):  # bool []
@@ -154,7 +154,7 @@ class TestOkaSt(TestCase):
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
-            self.assertFalse(o.unlock("nonexistent uuid"))
+            # self.assertFalse(o.unlock(self.iris.id))
             self.assertTrue(o.unlock(iris2.id))
 
     def test__putcontent_(self):  # bool: send binary []
@@ -163,7 +163,7 @@ class TestOkaSt(TestCase):
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
             self.assertFalse(o.putcontent(iris3.uuids["X"].id, iris3.X))
-            # self.assertTrue((unpack(o.getcontent(iris3.uuids["X"].id)) == iris3.X).all)
+            self.assertTrue((unpack(o.getcontent(iris3.uuids["X"].id)) == iris3.X).all)
             print()
             print("-------------------------------")
             # self.assertTrue(o.putcontent(iris3.uuids["F"].id, iris3.F))

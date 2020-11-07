@@ -129,7 +129,7 @@ class Tatu(Storage):
         return self.storage.putdata(*args, **kwargs)
 
     def putcontent(self, *args, **kwargs):
-        return self.storage.putdata(*args, **kwargs)
+        return self.storage.putcontent(*args, **kwargs)
 
     def putfields(self, *args, **kwargs):
         return self.storage.putfields(*args, **kwargs)

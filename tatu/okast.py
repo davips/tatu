@@ -25,6 +25,7 @@ import requests
 
 from cruipto.uuid import UUID
 from tatu.storageinterface import StorageInterface
+from aiuna.compression import pack
 
 
 def j(r):
@@ -88,13 +89,14 @@ class OkaSt(StorageInterface):
         return None if r.data == b'null\n' else r.data
 
     def _lock_(self, id):
-        # url = self.prefix + f"/api/sync/{id}/lock"
-        # r = self.requests.put(url, headers=self.headers)
-        # # return j(r)
-        return NotImplemented
+        url = self.prefix + f"/api/sync/{id}/lock"
+        r = self.requests.put(url, headers=self.headers)
+        return r.json["success"]
 
     def _unlock_(self, id):
-        return NotImplemented
+        url = self.prefix + f"/api/sync/{id}/unlock"
+        r = self.requests.put(url, headers=self.headers)
+        return r.json["success"]
 
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup):
         return NotImplemented
@@ -102,14 +104,12 @@ class OkaSt(StorageInterface):
     def _putfields_(self, rows, ignoredup):
         url = self.prefix + f"/api/sync/fields?ignoredup={ignoredup}"
         r = self.requests.post(url, headers=self.headers, json=rows)
-        return r.json["put"]
+        return r.json["success"]
 
     def _putcontent_(self, id, value, ignoredup):
-        url = self.prefix + f"/api/sync/{id}/content"
-        packed = fpack(value)
-        r = requests.post(url, files={'file': BytesIO(packed)}, headers=self.headers)
-        print(2222222222222222222222222, r)
-        return NotImplemented
+        url = self.prefix + f"/api/sync/{id}/content?ignoredup={ignoredup}"
+        r = self.requests.post(url, headers=self.headers, data={'files': {'bina': pack(value)}})
+        return r.json["success"]
 
     def _putstep_(self, id, name, path, config, dump, ignoredup):
         return NotImplemented
