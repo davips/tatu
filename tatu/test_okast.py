@@ -24,12 +24,12 @@ import json
 import warnings
 from unittest import TestCase
 
-from app import create_app, db
-from app.config import Config
-
 from aiuna.compression import unpack, pack
 from aiuna.content.root import Root
 from aiuna.step.dataset import Dataset
+from aiuna.step.let import Let
+from app import create_app, db
+from app.config import Config
 from kururu.tool.enhancement.binarize import Binarize
 from tatu.okast import OkaSt
 from tatu.sql.sqlite import SQLite
@@ -142,7 +142,7 @@ class TestOkaSt(TestCase):
             self.assertEquals(o.getcontent(self.iris.uuids["X"].id), pack(self.iris.X))
 
     def test__lock_(self):  # bool []
-        iris2 = self.iris >> Binarize()
+        iris2 = self.iris >> Let("F", [1, 2])
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
@@ -150,7 +150,7 @@ class TestOkaSt(TestCase):
             self.assertTrue(o.lock(iris2.id))
 
     def test__unlock_(self):  # bool []
-        iris2 = self.iris >> Binarize()
+        iris2 = self.iris >> Let("F", [1, 2])
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
@@ -158,19 +158,25 @@ class TestOkaSt(TestCase):
             self.assertTrue(o.unlock(iris2.id))
 
     def test__putcontent_(self):  # bool: send binary []
+        iris3 = self.iris >> Let("F", [1, 2, 3])
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
-            self.assertTrue(o.putcontent(self.iris.uuids["X"], self.iris.X))
-            self.assertTrue((unpack(o.getcontent(self.iris.uuids["X"])) == self.iris.X).all)
+            self.assertFalse(o.putcontent(iris3.uuids["X"].id, iris3.X))
+            # self.assertTrue((unpack(o.getcontent(iris3.uuids["X"].id)) == iris3.X).all)
+            print()
+            print("-------------------------------")
+            # self.assertTrue(o.putcontent(iris3.uuids["F"].id, iris3.F))
+            # self.assertTrue((unpack(o.getcontent(iris3.uuids["F"].id)) == iris3.F).all)
 
     def test__putdata_(self):  # bool:  send jsonable dict []
+        iris4 = self.iris >> Let("F", [1, 2, 3, 4])
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
             dic = {
-                "id": self.iris.id,
-                "step": self.iris.step_uuid.id,
+                "id": iris4.id,
+                "step": iris4.step_uuid.id,
                 "inn": None,
                 "stream": False,
                 "parent": "nonexistent uuid",
@@ -182,16 +188,18 @@ class TestOkaSt(TestCase):
             self.assertTrue(o.putdata(**dic))
 
     def test__putfields_(self):  # bool: send jsonable dict []
+        iris5 = self.iris >> Let("F", [1, 2, 3, 4, 5])
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
             rows = [
-                {"data": self.iris.id, "name": "X", "content": self.iris.uuids["X"]},
-                {"data": self.iris.id, "name": "Y", "content": self.iris.uuids["Y"]}
+                {"data": iris5.id, "name": "X", "content": iris5.uuids["X"]},
+                {"data": iris5.id, "name": "Y", "content": iris5.uuids["Y"]}
             ]
             self.assertFalse(o.putfields(rows))
-            self.assertTrue(o.putcontent(self.iris.uuids["X"], pack(self.iris.X)))
-            self.assertTrue(o.putcontent(self.iris.uuids["Y"], pack(self.iris.Y)))
+            self.assertTrue(o.putcontent(iris5.uuids["X"], pack(iris5.X)))
+            self.assertTrue(o.putcontent(iris5.uuids["Y"], pack(iris5.Y)))
+            self.assertTrue(o.putcontent(iris5.uuids["F"], pack(iris5.F)))
             self.assertTrue(o.putfields(rows))
 
     def test__putstep_(self):  # bool: send jsonable dict []
@@ -213,4 +221,3 @@ class TestOkaSt(TestCase):
                 "config": {}
             }
             self.assertTrue(o.putstep(**dic))
-
