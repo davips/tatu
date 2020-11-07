@@ -192,10 +192,11 @@ class TestOkaSt(TestCase):
         with self.app.test_client() as c:
             self.create_user(c)
             o = OkaSt(self.get_token(c), url=c)
-            rows = [
-                {"data": iris5.id, "name": "X", "content": iris5.uuids["X"]},
-                {"data": iris5.id, "name": "Y", "content": iris5.uuids["Y"]}
-            ]
+            rows = {"rows": [
+                {"data": iris5.id, "name": "X", "content": iris5.uuids["X"].id},
+                {"data": iris5.id, "name": "Y", "content": iris5.uuids["Y"].id}
+            ]}
+            
             self.assertFalse(o.putfields(rows))
             self.assertTrue(o.putcontent(iris5.uuids["X"], pack(iris5.X)))
             self.assertTrue(o.putcontent(iris5.uuids["Y"], pack(iris5.Y)))

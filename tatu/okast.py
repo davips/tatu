@@ -100,13 +100,15 @@ class OkaSt(StorageInterface):
         return NotImplemented
 
     def _putfields_(self, rows, ignoredup):
-        return NotImplemented
+        url = self.prefix + f"/api/sync/fields?ignoredup={ignoredup}"
+        r = self.requests.post(url, headers=self.headers, json=rows)
+        return r.json["put"]
 
     def _putcontent_(self, id, value, ignoredup):
-        # url = self.prefix + f"/api/sync/{id}/content"
-        # packed = fpack(value)
-        # r = requests.post(url, files={'file': BytesIO(packed)}, headers=self.headers)
-        # print(2222222222222222222222222, r)
+        url = self.prefix + f"/api/sync/{id}/content"
+        packed = fpack(value)
+        r = requests.post(url, files={'file': BytesIO(packed)}, headers=self.headers)
+        print(2222222222222222222222222, r)
         return NotImplemented
 
     def _putstep_(self, id, name, path, config, dump, ignoredup):
