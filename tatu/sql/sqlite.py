@@ -34,7 +34,7 @@ class SQLite(SQL):
         self.info = db
         self.read_only = read_only
         self.hostname = socket.gethostname()
-        self.database = db + ".db"
+        self.database = db if ":memory:" in db else (db + ".db")
         self.storage_info = storage_info
         self.debug = debug
         self._uuid = UUID((self.__class__.__name__ + db).encode())
