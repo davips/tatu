@@ -39,13 +39,13 @@ class Pickle(StorageInterface):
     def _fetch_children_(self, data: Data):
         raise Exception("Storage Pickle cannot retrieve children!")
 
-    def __init__(self, threaded=True, db="tatu-sqlite", compress=True):
+    def __init__(self, threaded=True, db="tatu-sqlite", compress=True, close_when_idle=False):
         self.db = db
         self.compress = compress
         if not Path(db).exists():
             os.mkdir(db)
         self._uuid = UUID(json.dumps([db, compress], sort_keys=True, ensure_ascii=False).encode())
-        super().__init__(threaded, timeout=1)
+        super().__init__(threaded, timeout=1, close_when_idle=close_when_idle)
 
     def _uuid_(self):
         return self._uuid

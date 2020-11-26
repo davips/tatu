@@ -30,7 +30,7 @@ from aiuna.history import History
 from cruipto.uuid import UUID
 from linalghelper import islazy
 from tatu.abs.mixin.thread import asThread
-from tatu.abs.storage import Storage
+from tatu.abs.storage import Storage, DuplicateEntryException
 from transf.step import Step
 
 
@@ -50,13 +50,6 @@ class StorageInterface(asThread, Storage, ABC):
                 raise Exception("Could not lock data:", data_id)
             return
 
-        # Build a lazy Data object  TODO essa parte só serve qnd temos apenas o data uuid
-        # step_func = lambda: self.getstep(ret["step"])
-        # step_func.name = f"_{ret['step']}_from_storage_" + self.id
-        #
-        # step_funcs = lambda: self.gethistory(ret["parent"])
-        # step_funcs.name = f"_history_from_storage_" + self.id
-
         fields = {}
         for field, fid in ret["uuids"].items():
             if field == "stream":
@@ -72,7 +65,7 @@ class StorageInterface(asThread, Storage, ABC):
 
         if isinstance(data, str):
             if lazy:
-                raise Exception("lazy ainda não retorna histórico")
+                raise Exception("lazy ainda não retorna histórico para data dado por uuid-string")  # <-- TODO
             history = self.fetchhistory(data)
         else:
             history = data.history
@@ -155,7 +148,7 @@ class StorageInterface(asThread, Storage, ABC):
 
             # History.
             datauuid, ok = Root.uuid, False
-            for step in d.history:
+            for step in list(d.history)[1:]:  # REMINDER: NoOp->Root is already stored
                 if not self.hasstep(step.id):
                     self.storestep(step)
 

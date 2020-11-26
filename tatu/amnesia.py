@@ -33,7 +33,7 @@ class Amnesia(StorageInterface):
         raise Exception("(Pseudo)Storage Amnesia cannot retrieve children!")
 
     def __init__(self):
-        super().__init__(threaded=False, timeout=None)
+        super().__init__(threaded=False, timeout=None, close_when_idle=False)
 
     def _uuid_(self):
         return UUID(b"Amnesia")

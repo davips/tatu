@@ -33,7 +33,7 @@ from tatu.abs.sql import SQL
 
 
 class MySQL(SQL):
-    def __init__(self, db="user:pass@ip/db", threaded=True, storage_info=None, debug=True, read_only=False):
+    def __init__(self, db="user:pass@ip/db", threaded=True, close_when_idle=False, storage_info=None, debug=True, read_only=False):
         self._uuid = UUID((self.__class__.__name__ + db).encode())
         if "@" not in db:
             raise Exception("Missing @ at db url:", db)
@@ -50,7 +50,7 @@ class MySQL(SQL):
         if "-" in db:
             raise Exception("'-' not allowed in db name!")
         self.hostname = socket.gethostname()
-        super().__init__(threaded, timeout=8)
+        super().__init__(threaded, timeout=8, close_when_idle=close_when_idle)
 
     def _uuid_(self):
         return self._uuid

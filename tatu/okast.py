@@ -36,7 +36,7 @@ def j(r):
 class OkaSt(StorageInterface):
     """Central remote storage"""
 
-    def __init__(self, token, alias=None, threaded=True, url="http://localhost:5000"):
+    def __init__(self, token, alias=None, threaded=True, url="http://localhost:5000", close_when_idle=False):
         if not isinstance(url, str):
             self.requests = url
             self.headers = None
@@ -46,7 +46,7 @@ class OkaSt(StorageInterface):
         self.url = url
         self.alias = alias
         self.prefix = self.url if isinstance(self.url, str) else ""
-        super().__init__(threaded, timeout=6)  # TODO: check if threading will destroy oka
+        super().__init__(threaded, timeout=6, close_when_idle=close_when_idle)  # TODO: check if threading will destroy oka
 
     def _uuid_(self):
         r = self.requests.get(self.prefix + f"/api/sync", headers=self.headers)

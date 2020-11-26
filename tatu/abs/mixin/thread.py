@@ -33,10 +33,11 @@ class asThread(ABC):
     mythread = None
     isopen = False
 
-    def __init__(self, threaded, timeout):
+    def __init__(self, threaded, timeout, close_when_idle):
         """timeout: Time spent hoping the thread will be useful again."""
         self.isthreaded = threaded
         self.timeout = timeout
+        self.close_when_idle = close_when_idle
 
     def open(self):
         if self.isopen:
@@ -45,6 +46,10 @@ class asThread(ABC):
             raise Exception("Cannot manually open a threaded storage!\nHINT: just use it, that the thread will take care of opening if still neeeded.")
         self._open_()
         self.isopen = True
+
+    def close(self):
+        self.queue.put(None)
+        self.isopen = False
 
     @property
     def threaded(self):
@@ -95,16 +100,19 @@ class asThread(ABC):
 
         while self.isopen:
             try:
-                # Smart timeout control, so we don't have to wait too much the thread after the main program is gone.
-                t, dt = 0, 0.25
-                job = None
-                while job is None and t < self.timeout:
-                    try:
-                        job = self.queue.get(timeout=dt)
-                    except Empty:
-                        if not threading.main_thread().is_alive():
-                            break
-                    t += dt
+                if self.close_when_idle:
+                    # Smart timeout control, so we don't have to wait too much the thread after the main program is gone.
+                    t, dt = 0, 0.25
+                    job = None
+                    while job is None and t < self.timeout:
+                        try:
+                            job = self.queue.get(timeout=dt)
+                        except Empty:
+                            if not threading.main_thread().is_alive():
+                                break
+                        t += dt
+                else:
+                    job = self.queue.get()
                 if job is None:
                     break
 

@@ -80,11 +80,11 @@ class Tatu(Storage):
         return self.storage.uuid
 
     # TODO make all args/kwargs explicity for better docs/IDE integration
-    def fetch(self, *args, **kwargs):
-        return self.storage.fetch(*args, **kwargs)
+    def fetch(self, data, lock=False, lazy=True):
+        return self.storage.fetch(data, lock, lazy)
 
-    def store(self, *args, **kwargs):
-        return self.storage.store(*args, **kwargs)
+    def store(self, data, unlock=False, ignoredup=False, lazy=False):
+        return self.storage.store(data, unlock, ignoredup, lazy)
 
     def fetchhistory(self, *args, **kwargs):
         return self.storage.fetchhistory(*args, **kwargs)
@@ -139,36 +139,6 @@ class Tatu(Storage):
 
     def putstep(self, *args, **kwargs):
         return self.storage.putstep(*args, **kwargs)
-    #
-    # @classmethod
-    # @classproperty
-    # def _now_function(cls):
-    #     return cls.storage._now_function
-    #
-    # @classmethod
-    # @classproperty
-    # def _keylimit(cls):
-    #     return cls.storage._keylimit
-    #
-    # @classmethod
-    # @classproperty
-    # def _auto_incr(cls):
-    #     return cls.storage._auto_incr
-    #
-    # @classmethod
-    # def _fkcheck(cls, enable):
-    #     return cls.storage._fkcheck
-    #
-    # @classmethod
-    # def _on_conflict(cls, cols):
-    #     return cls.storage._on_conflict
-    #
-    # @classmethod
-    # @classproperty
-    # def _insert_ignore(cls):
-    #     return cls.storage._insert_ignore
-    #
-    # @classmethod
-    # @classproperty
-    # def _placeholder(cls):
-    #     return cls.storage._placeholder
+
+    def close(self):
+        return self.storage.close()

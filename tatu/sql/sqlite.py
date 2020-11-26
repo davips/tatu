@@ -30,7 +30,7 @@ from tatu.abs.sql import SQL
 
 
 class SQLite(SQL):
-    def __init__(self, db="tatu-sqlite", threaded=True, storage_info=None, debug=not False, read_only=False):
+    def __init__(self, db="tatu-sqlite", threaded=True, close_when_idle=False, storage_info=None, debug=not False, read_only=False):
         self.info = db
         self.read_only = read_only
         self.hostname = socket.gethostname()
@@ -38,7 +38,7 @@ class SQLite(SQL):
         self.storage_info = storage_info
         self.debug = debug
         self._uuid = UUID((self.__class__.__name__ + db).encode())
-        super().__init__(threaded, timeout=2)
+        super().__init__(threaded, timeout=2, close_when_idle=close_when_idle)
 
     def _uuid_(self):
         return self._uuid
