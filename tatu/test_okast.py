@@ -57,6 +57,8 @@ class TestOkaSt(TestCase):
         db.create_all()
         self.app.config['JWT_BLACKLIST_ENABLED'] = False
         self.app.config['TATU_URL'] = "sqlite://:memory:"
+
+        # Create a storage identical to the one used in app, to check for its uuid in test__uuid_().
         self.db = SQLite(db=":memory:")
         self.iris = Dataset().data
         self.db.store(self.iris, ignoredup=True)
@@ -196,7 +198,7 @@ class TestOkaSt(TestCase):
                 {"data": iris5.id, "name": "X", "content": iris5.uuids["X"].id},
                 {"data": iris5.id, "name": "Y", "content": iris5.uuids["Y"].id}
             ]}
-            
+
             self.assertFalse(o.putfields(rows))
             self.assertTrue(o.putcontent(iris5.uuids["X"], pack(iris5.X)))
             self.assertTrue(o.putcontent(iris5.uuids["Y"], pack(iris5.Y)))
