@@ -148,7 +148,7 @@ class StorageInterface(asThread, Storage, ABC):
 
             # History.
             datauuid, ok = Root.uuid, False
-            for step in list(d.history)[1:]:  # REMINDER: NoOp->Root is already stored
+            for step in list(d.history):
                 if not self.hasstep(step.id):
                     self.storestep(step)
 
@@ -168,9 +168,9 @@ class StorageInterface(asThread, Storage, ABC):
         while True:
             ret = self.getdata(id)
             steps.append(self.fetchstep(ret["step"]))
+            id = ret["parent"]
             if id == UUID().id:
                 break
-            id = ret["parent"]
         history = History(steps[-1])
         for step in reversed(steps[:-1]):
             history <<= step
