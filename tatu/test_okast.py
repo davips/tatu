@@ -30,7 +30,7 @@ from aiuna.step.dataset import Dataset
 from aiuna.step.let import Let
 from app import create_app, db
 from app.config import Config
-from kururu.tool.enhancement.binarize import Binarize
+from kururu.tool.enhancement.attribute.binarize import Binarize
 from tatu.okast import OkaSt
 from tatu.sql.sqlite import SQLite
 from transf.noop import NoOp
