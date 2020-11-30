@@ -129,7 +129,6 @@ class StorageInterface(asThread, Storage, ABC):
                 for field in data.field_funcs_m:
                     data.field_funcs_m[field] = func(data, field, field_funcs_copy, missing)
                     data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
-                    print("!!!!!!!!!!!!!!!!    missing", field, data.field_funcs_m[field])
             else:
                 for k, v in data.items():
                     id = data.uuids[k].id
@@ -174,7 +173,7 @@ class StorageInterface(asThread, Storage, ABC):
         history = History(steps[-1])
         for step in reversed(steps[:-1]):
             history <<= step
-            print("   ...history fetched!", id)
+        print("   ...history fetched!", id)
         return history
 
     def fetchstep(self, id):

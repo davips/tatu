@@ -59,20 +59,20 @@ from tatu.abs.storage import Storage
 class Tatu(Storage):
     storage = None
 
-    def __init__(self, url="sqlite://tatu-sqlite", threaded=True, alias=None):
+    def __init__(self, url="sqlite://tatu-sqlite", threaded=True, alias=None, close_when_idle=False):
         if "://" not in url:
             raise Exception("Missing '://' in url:", url)
         backend, db = url.split("://")
         if backend == "sqlite":
             from tatu.sql.sqlite import SQLite
-            self.storage = SQLite(db, threaded)
+            self.storage = SQLite(db, threaded, close_when_idle)
         elif backend == "mysql":
             from tatu.sql.mysql import MySQL
-            self.storage = MySQL(db, threaded)
+            self.storage = MySQL(db, threaded, close_when_idle)
         elif backend == "oka":
             from tatu.okast import OkaSt
             token, url = db.split("@")
-            self.storage = OkaSt(token, alias, threaded, url=url)  # TODO Accept user/login in OkaSt?
+            self.storage = OkaSt(token, alias, threaded, url, close_when_idle)  # TODO Accept user/login in OkaSt?
         else:
             raise Exception("Unknown DBMS backend:", url)
 
@@ -86,8 +86,8 @@ class Tatu(Storage):
     def store(self, data, unlock=False, ignoredup=False, lazy=False):
         return self.storage.store(data, unlock, ignoredup, lazy)
 
-    def fetchhistory(self, *args, **kwargs):
-        return self.storage.fetchhistory(*args, **kwargs)
+    def fetchhistory(self, id):
+        return self.storage.fetchhistory(id)
 
     def fetchstep(self, *args, **kwargs):
         return self.storage.fetchstep(*args, **kwargs)
@@ -119,8 +119,8 @@ class Tatu(Storage):
     def lock(self, *args, **kwargs):
         return self.storage.lock(*args, **kwargs)
 
-    def deldata(self, *args, **kwargs):
-        return self.storage.deldata(*args, **kwargs)
+    def deldata(self, id, check_success=True):
+        return self.storage.deldata(id, check_success)
 
     def unlock(self, *args, **kwargs):
         return self.storage.unlock(*args, **kwargs)

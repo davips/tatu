@@ -48,7 +48,8 @@ class asThread(ABC):
         self.isopen = True
 
     def close(self):
-        self.queue.put(None)
+        if self.isthreaded:
+            self.queue.put(None)
         self.isopen = False
 
     @property
