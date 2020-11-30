@@ -107,8 +107,8 @@ class Tatu(Storage):
     def getfields(self, *args, **kwargs):
         return self.storage.getfields(*args, **kwargs)
 
-    def getcontent(self, *args, **kwargs):
-        return self.storage.getcontent(*args, **kwargs)
+    def getcontent(self, id):
+        return self.storage.getcontent(id)
 
     def hascontent(self, *args, **kwargs):
         return self.storage.hascontent(*args, **kwargs)
@@ -139,6 +139,9 @@ class Tatu(Storage):
 
     def putstep(self, *args, **kwargs):
         return self.storage.putstep(*args, **kwargs)
+
+    def open(self):
+        return self.storage.open()
 
     def close(self):
         return self.storage.close()

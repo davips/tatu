@@ -46,7 +46,8 @@ class OkaSt(StorageInterface):
         self.url = url
         self.alias = alias
         self.prefix = self.url if isinstance(self.url, str) else ""
-        super().__init__(threaded, timeout=6, close_when_idle=close_when_idle)  # TODO: check if threading will destroy oka
+        super().__init__(threaded, timeout=6,
+                         close_when_idle=close_when_idle)  # TODO: check if threading will destroy oka
 
     def _uuid_(self):
         r = self.requests.get(self.prefix + f"/api/sync", headers=self.headers)
@@ -78,10 +79,11 @@ class OkaSt(StorageInterface):
         return j(r)
 
     def _hascontent_(self, ids):
-        return NotImplemented
-        # url = self.prefix + f"/api/syncaaaaaaaa?cat=content&fetch=false"
-        # r = self.requests.get(url, headers=self.headers)
-        # return j(r)["has"]
+        if len(ids) > 1:
+            print("                                     WARNING: cannot handle more than one content yet:", len(ids))
+        url = self.prefix + f"/api/sync/{ids[0]}?cat=content&fetch=false"
+        r = self.requests.get(url, headers=self.headers)
+        return j(r)["has"]
 
     def _getcontent_(self, id):
         url = self.prefix + f"/api/sync/{id}/content"
@@ -109,6 +111,8 @@ class OkaSt(StorageInterface):
     def _putcontent_(self, id, value, ignoredup):
         url = self.prefix + f"/api/sync/{id}/content?ignoredup={ignoredup}"
         r = self.requests.post(url, headers=self.headers, data={'files': {'bina': pack(value)}})
+        print(r.json)
+        exit()
         return r.json["success"]
 
     def _putstep_(self, id, name, path, config, dump, ignoredup):
