@@ -89,56 +89,56 @@ class Tatu(Storage):
     def fetchhistory(self, id):
         return self.storage.fetchhistory(id)
 
-    def fetchstep(self, *args, **kwargs):
-        return self.storage.fetchstep(*args, **kwargs)
+    def fetchstep(self, id):
+        return self.storage.fetchstep(id)
 
-    def hasdata(self, *args, **kwargs):
-        return self.storage.hasdata(*args, **kwargs)
+    def hasdata(self, id, include_empty=False):
+        return self.storage.hasdata(id, include_empty)
 
-    def getdata(self, *args, **kwargs):
-        return self.storage.getdata(*args, **kwargs)
+    def getdata(self, id, include_empty=True):
+        return self.storage.getdata(id, include_empty)
 
-    def hasstep(self, *args, **kwargs):
-        return self.storage.hasstep(*args, **kwargs)
+    def hasstep(self, id):
+        return self.storage.hasstep(id)
 
-    def getstep(self, *args, **kwargs):
-        return self.storage.getstep(*args, **kwargs)
+    def getstep(self, id):
+        return self.storage.getstep(id)
 
-    def getfields(self, *args, **kwargs):
-        return self.storage.getfields(*args, **kwargs)
+    def getfields(self, id):
+        return self.storage.getfields(id)
 
     def getcontent(self, id):
         return self.storage.getcontent(id)
 
-    def hascontent(self, *args, **kwargs):
-        return self.storage.hascontent(*args, **kwargs)
+    def hascontent(self, ids):
+        return self.storage.hascontent(ids)
 
-    def removedata(self, *args, **kwargs):
-        return self.storage.removedata(*args, **kwargs)
+    def removedata(self, data, check_existence=True, recursive=True):
+        return self.storage.removedata(data, check_existence, recursive)
 
-    def lock(self, *args, **kwargs):
-        return self.storage.lock(*args, **kwargs)
+    def lock(self, id, check_existence=True):
+        return self.storage.lock(id, check_existence)
 
     def deldata(self, id, check_success=True):
         return self.storage.deldata(id, check_success)
 
-    def unlock(self, *args, **kwargs):
-        return self.storage.unlock(*args, **kwargs)
+    def unlock(self, id, check_success=True):
+        return self.storage.unlock(id, check_success)
 
-    def putdata(self, *args, **kwargs):
-        return self.storage.putdata(*args, **kwargs)
+    def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
+        return self.storage.putdata(id, step, inn, stream, parent, locked, ignoredup)
 
-    def putcontent(self, *args, **kwargs):
-        return self.storage.putcontent(*args, **kwargs)
+    def putcontent(self, id, value, ignoredup=False):
+        return self.storage.putcontent(id, value, ignoredup)
 
-    def putfields(self, *args, **kwargs):
-        return self.storage.putfields(*args, **kwargs)
+    def putfields(self, rows, ignoredup=False):
+        return self.storage.putfields(rows, ignoredup)
 
-    def storestep(self, *args, **kwargs):
-        return self.storage.storestep(*args, **kwargs)
+    def storestep(self, step, dump=None, ignoredup=False):
+        return self.storage.storestep(step, dump, ignoredup)
 
-    def putstep(self, *args, **kwargs):
-        return self.storage.putstep(*args, **kwargs)
+    def putstep(self, id, name, path, config, dump=None, ignoredup=False):
+        return self.storage.putstep(id, name, path, config, dump, ignoredup)
 
     def open(self):
         return self.storage.open()

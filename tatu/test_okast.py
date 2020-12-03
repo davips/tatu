@@ -64,6 +64,8 @@ class TestOkaSt(TestCase):
         self.db = SQLite(db=":memory:")
 
     def tearDown(self):
+        self.app.config["TATU_SERVER"].close()
+        self.db.close()
         db.session.remove()
         db.drop_all()
         self.app_context.pop()

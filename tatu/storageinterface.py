@@ -177,10 +177,12 @@ class StorageInterface(asThread, Storage, ABC):
         return history
 
     def fetchstep(self, id):
-        """Return a Step object."""
+        """Return a Step object or None."""
         print("Fetching step...", id)
         r = self.getstep(id)
         print("       ...fetched step?", id, bool(r), r)
+        if r is None:
+            return None
         r["config"] = json.loads(r["config"])
         return Step.fromdict({"id": id, "desc": r})
 
