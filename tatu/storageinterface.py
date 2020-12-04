@@ -28,10 +28,10 @@ from aiuna.content.data import Data
 from aiuna.content.root import Root
 from aiuna.history import History
 from cruipto.uuid import UUID
-from linalghelper import islazy
+from akangatu.linalghelper import islazy
 from tatu.abs.mixin.thread import asThread
 from tatu.abs.storage import Storage, DuplicateEntryException
-from transf.step import Step
+from akangatu.transf.step import Step
 
 
 class StorageInterface(asThread, Storage, ABC):

@@ -28,7 +28,7 @@
 # from aiuna.step.dataset import Dataset
 # from aiuna.step.let import Let
 # from tatu import Tatu
-# from transf.noop import NoOp
+# from akangatu.transf.noop import NoOp
 #
 #
 # class TestTatu(TestCase):

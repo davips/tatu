@@ -26,7 +26,7 @@ from sqlite3 import IntegrityError
 from cruipto.uuid import UUID
 from tatu.abs.sqlreadonly import SQLReadOnly
 from tatu.abs.storage import LockedEntryException, DuplicateEntryException
-from transf.noop import NoOp
+from akangatu.transf.noop import NoOp
 
 
 class SQL(SQLReadOnly, ABC):
