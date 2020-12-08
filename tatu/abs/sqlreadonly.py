@@ -90,7 +90,7 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
             return c.fetchone() is not None
 
     def _hascontent_(self, ids):
-        sql = f"select id from content where id in ({('?,' * len(ids))[:-1]})"
+        sql = f"select id from content where id in ({('?,' * len(ids))[:-1]})"  # REMINDER: -1 deletes comma
         with self.cursor() as c:
             self.run(c, sql, ids)
             return [r["id"] for r in c.fetchall()]

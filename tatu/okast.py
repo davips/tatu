@@ -50,26 +50,27 @@ class OkaSt(StorageInterface):
                          close_when_idle=close_when_idle)  # TODO: check if threading will destroy oka
 
     def _uuid_(self):
-        r = self.requests.get(self.prefix + f"/api/sync", headers=self.headers)
+        # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
+        r = self.requests.get(self.prefix + f"/api/sync_uuid", headers=self.headers)
         return UUID(j(r)["uuid"])
 
     def _hasdata_(self, id, include_empty):
-        url = self.prefix + f"/api/sync/{id}?cat=data&fetch=false&empty={include_empty}"
+        url = self.prefix + f"/api/sync?uuids={id}&cat=data&fetch=false&empty={include_empty}"
         r = self.requests.get(url, headers=self.headers)
         return j(r)["has"]
 
     def _getdata_(self, id, include_empty):
-        url = self.prefix + f"/api/sync/{id}?cat=data&fetch=true&empty={include_empty}"
+        url = self.prefix + f"/api/sync?uuids={id}&cat=data&fetch=true&empty={include_empty}"
         r = self.requests.get(url, headers=self.headers)
         return j(r)
 
     def _hasstep_(self, id):
-        url = self.prefix + f"/api/sync/{id}?cat=step&fetch=false"
+        url = self.prefix + f"/api/sync?uuids={id}&cat=step&fetch=false"
         r = self.requests.get(url, headers=self.headers)
         return j(r)["has"]
 
     def _getstep_(self, id):
-        url = self.prefix + f"/api/sync/{id}?cat=step&fetch=true"
+        url = self.prefix + f"/api/sync?uuids={id}&cat=step&fetch=true"
         r = self.requests.get(url, headers=self.headers)
         return j(r)
 
@@ -81,86 +82,56 @@ class OkaSt(StorageInterface):
     def _hascontent_(self, ids):
         if len(ids) > 1:
             print("                                     WARNING: cannot handle more than one content yet:", len(ids))
-        url = self.prefix + f"/api/sync/{ids[0]}?cat=content&fetch=false"
+        uuids = "&".join([f"uuids={id}" for id in ids])
+        url = self.prefix + f"/api/sync?{uuids}&cat=content&fetch=false"
         r = self.requests.get(url, headers=self.headers)
         return j(r)["has"]
 
     def _getcontent_(self, id):
         url = self.prefix + f"/api/sync/{id}/content"
         r = self.requests.get(url, headers=self.headers)
-        return None if r.data == b'null\n' else r.data
+        return None if r.content == b'null\n' else r.content
 
     def _lock_(self, id):
         url = self.prefix + f"/api/sync/{id}/lock"
         r = self.requests.put(url, headers=self.headers)
-        return r.json["success"]
+        return j(r)["success"]
 
     def _unlock_(self, id):
         url = self.prefix + f"/api/sync/{id}/unlock"
         r = self.requests.put(url, headers=self.headers)
-        return r.json["success"]
+        return j(r)["success"]
 
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup):
-        return NotImplemented
+        kwargs = locals().copy()
+        del kwargs["self"]
+        url = self.prefix + f"/api/sync?cat=data"
+        r = self.requests.post(url, headers=self.headers, json={"kwargs": kwargs})
+        return j(r)["success"]
 
     def _putfields_(self, rows, ignoredup):
         url = self.prefix + f"/api/sync/fields?ignoredup={ignoredup}"
-        r = self.requests.post(url, headers=self.headers, json=rows)
-        return r.json["success"]
+        r = self.requests.post(url, headers=self.headers, json={"rows": rows})
+        return j(r)["success"]
 
     def _putcontent_(self, id, value, ignoredup):
         url = self.prefix + f"/api/sync/{id}/content?ignoredup={ignoredup}"
-        r = self.requests.post(url, headers=self.headers, data={'files': {'bina': pack(value)}})
-        print(r.json)
-        exit()
-        return r.json["success"]
+        r = self.requests.post(url, headers=self.headers, files={'bina': value})
+        return j(r)["success"]
 
     def _putstep_(self, id, name, path, config, dump, ignoredup):
-        return NotImplemented
-
-    # def _hasdata_(self, ids, include_empty=True):
-    #     response = requests.get(self.url + f"/api/sync/{id}?dryrun=true", headers=self.headers)
-    #     content = response.text
-    #     print(response.text)
-    #     if "errors" in content:
-    #     raise Exception("Invazxczvzxvxzlid token", content, self.url + f"/api/sync/{id}")
-    #     return content
-
-    # # api/sync?cat=data&uuid=ua&uuid=ub&empty=0  ->  lista de dicts
-    # def _getdata_(self, ids, include_empty=True):
-    #     response = requests.get(self.url + f"/api/tatu?uuid={id}", headers=self.headers)
-    #     content = response.content
-    #     if b"errors" in content:
-    #     raise Exception("Invalid token", content, self.url + f"?uuid={did}")
-    #     return content
-
-    # # api/sync  ->  string
-    # def _uuid_(self):
-    #     # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
-    #     response = requests.get(self.url + f"/api/tatu?uuid=storage", headers=self.headers)
-    #     if b"errors" in response.content:
-    #     raise Exception("Invalid token", response.content, self.url + f"?uuid=storage")
-    #     return UUID(json.loads(response.text)["uuid"])
-
-    # # api/sync?cat=data&uuid=ua  ->  sucesso?
-    # # id, step, inn, stream, parent, locked, ignoredup
-    # def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
-    #     # tem que criar post
-    #     # vincular pra só enviar content se data der certo
-    #     # /sync/hj354jg43kj4g34?inn=hj354jg43kj4g34&names=str&fields=str&history=str
-    #
-    #     packed = pack(data)  # TODO: consultar previamente o que falta enviar, p/ minimizar trafego
-    #     #  TODO: enviar por field
-    #     #  TODO: override store() para evitar travessia na classe mãe?
-    #     files = {
-    #     'json': BytesIO(json.dumps({'alias': self.alias}).encode()),
-    #     'file': BytesIO(packed)
-    #     }
-    #     r = requests.post(self.url + "/api/tatu", files=files, headers=self.headers)
-    #     pass
+        kwargs = locals().copy()
+        del kwargs["self"]
+        url = self.prefix + f"/api/sync?cat=step"
+        r = self.requests.post(url, headers=self.headers, json={"kwargs": kwargs})
+        return j(r)["success"]
 
     def _deldata_(self, id):
         raise Exception(f"OkaSt cannot delete Data entries! HINT: deactivate post {id} on Oka.")
 
     def _open_(self):
         pass  # nothing to open for okast
+
+# TODO: consultar previamente o que falta enviar, p/ minimizar trafego
+#     #  TODO: enviar por field
+#     #  TODO: override store() para evitar travessia na classe mãe?

@@ -57,8 +57,10 @@ class StorageInterface(asThread, Storage, ABC):
             elif field == "changed":
                 fields[field] = unpack(self.getcontent(fid)) if isinstance(data, str) else data.changed
             elif field not in ["inner"] and (isinstance(data, str) or field in data.changed):
-                fields[field] = (lambda fid_: lambda: unpack(self.getcontent(fid_)))(fid) if lazy else unpack(
-                    self.getcontent(fid))
+                if lazy:
+                    fields[field] = (lambda fid_: lambda: unpack(self.getcontent(fid_)))(fid)
+                else:
+                    fields[field] = unpack(self.getcontent(fid))
             if lazy and field != "changed":
                 # Call each lambda by a friendly name.
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
