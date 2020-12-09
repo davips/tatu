@@ -118,7 +118,8 @@ class StorageInterface(asThread, Storage, ABC):
                     id = held_data.uuids[k].id
                     if id in puts:
                         if k != "inner":
-                            self.putcontent(id, fpack(held_data, k))
+                            # REMINDER/TODO: exceptionally two datasets can have some equal contents, like Xd; so we send it again while the hash is not based on content
+                            self.putcontent(id, fpack(held_data, k), ignoredup=True)
                 rows = [(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items() if fname != "inner"]
                 self.putfields(rows)
                 return held_data.field_funcs_m[name]
@@ -139,7 +140,8 @@ class StorageInterface(asThread, Storage, ABC):
                     id = data.uuids[k].id
                     if id in missing:
                         content = v.id.encode() if k == "inner" else fpack(data, k)
-                        self.putcontent(id, content)
+                        # REMINDER/TODO: exceptionally two datasets can have some equal contents, like Xd; so we send it again while the hash is not based on content
+                        self.putcontent(id, content, ignoredup=True)
 
             lst.append(data)
             if not data.hasinner:
