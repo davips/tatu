@@ -23,6 +23,7 @@
 from abc import ABC
 
 from tatu.abs.mixin.setup import withSetup
+from tatu.abs.storage import LockedEntryException
 from tatu.storageinterface import StorageInterface
 
 
@@ -52,7 +53,7 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
         uuids = {}
         for row in r:
             if row["locked"]:
-                raise Exception("Cannot get a locked Data object.")
+                raise LockedEntryException("Cannot get a locked Data object.")
             if row["field_name"]:
                 uuids[row["field_name"]] = row["field_id"]
         return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"],

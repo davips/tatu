@@ -30,27 +30,30 @@ from aiuna.history import History
 from cruipto.uuid import UUID
 from akangatu.linalghelper import islazy
 from tatu.abs.mixin.thread import asThread
-from tatu.abs.storage import Storage, DuplicateEntryException
+from tatu.abs.storage import Storage, DuplicateEntryException, LockedEntryException
 from akangatu.transf.step import Step
 
 
 class StorageInterface(asThread, Storage, ABC):
     # TODO (strict) fetch by uuid
     # TODO (strict) store
-    def fetch(self, data, lock=False, lazy=True):  # , recursive=True):   # TODO: pensar no include_empty=False se faz sentido
+    def fetch(self, data, lock=False,
+              lazy=True):  # , recursive=True):   # TODO: pensar no include_empty=False se faz sentido
         """Fetch the data object fields on-demand.
          data: uuid string or a (probably still not fully evaluated) Data object."""
         data_id = data if isinstance(data, str) else data.id
         # lst = []
         # TODO: adopt logging    print("Fetching...", data_id)
         # while True:
-        ret = self.getdata(data_id, include_empty=False)
-        if ret is None:
-            if lock and not self.lock(data_id):
+        ret = self.getdata(data_id, include_empty=True)
+
+        if ret is None or not ret["uuids"]:
+            # REMINDER: check_existence false porque pode ser um data vazio [e é para o Cache funcionar mesmo que ele tenha sido interrompido]
+            if lock and not self.lock(data_id, check_existence=False):
                 raise Exception("Could not lock data:", data_id)
             return
 
-        fields = {}
+        fields = {} if isinstance(data, str) else data.field_funcs_m
         for field, fid in ret["uuids"].items():
             if field == "stream":
                 fields[field] = lambda: self.getcontent(fid)  # TODO getstream() as iterator of lazyfetches

@@ -21,7 +21,8 @@
 #  time spent here.
 #  Relevant employers or funding agencies will be notified accordingly.
 from abc import ABC
-from sqlite3 import IntegrityError
+from sqlite3 import IntegrityError as sqliteIntegError
+from pymysql import IntegrityError as myIntegError
 
 from cruipto.uuid import UUID
 from tatu.abs.sqlreadonly import SQLReadOnly
@@ -46,19 +47,23 @@ class SQL(SQLReadOnly, ABC):
                 self.commit()
                 r = c.rowcount
             return r == 1
-        except IntegrityError as e:
+        except (myIntegError, sqliteIntegError) as e:
             with self.cursor() as c2:
                 self.run(c2, "select 1 as r from data where id=? and locked=1", [id])
                 r2 = c2.fetchone()
-                if "r" in r2:
+                if r2 and "r" in r2:
                     raise LockedEntryException(id)
                 else:
                     raise DuplicateEntryException(id)
 
     def _lock_(self, id, ignoredup=False):
         # Placeholder values: step=identity and parent=own-id
-        sql = f"insert {'or ignore' if ignoredup else ''} into data values (null,?,'{NoOp().id}',null,0,?,1)"
-        return self._handle_integrity_error(id, sql, [id, id])
+        try:
+            sql = f"insert {'or ignore' if ignoredup else ''} into data values (null,?,'{NoOp().id}',null,0,?,1)"
+            return self._handle_integrity_error(id, sql, [id, id])
+        except:
+            sql = f"update data set locked=1 where id=?"
+            return self._handle_integrity_error(id, sql, [id])
 
     def _unlock_(self, id):
         with self.cursor() as c:
