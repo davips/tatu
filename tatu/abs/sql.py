@@ -79,7 +79,7 @@ class SQL(SQLReadOnly, ABC):
         with self.cursor() as c:
             self.write_many(c, rows, "field")
             self.commit()
-            return c.rowcount > 0
+            return c.rowcount
 
     def _putcontent_(self, id, value, ignoredup=False):
         with self.cursor() as c:

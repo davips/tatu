@@ -37,12 +37,12 @@ from akangatu.transf.step import Step
 class StorageInterface(asThread, Storage, ABC):
     # TODO (strict) fetch by uuid
     # TODO (strict) store
-    def fetch(self, data, lock=False, lazy=True):  # , recursive=True):
+    def fetch(self, data, lock=False, lazy=True):  # , recursive=True):   # TODO: pensar no include_empty=False se faz sentido
         """Fetch the data object fields on-demand.
          data: uuid string or a (probably still not fully evaluated) Data object."""
         data_id = data if isinstance(data, str) else data.id
         # lst = []
-        print("Fetching...", data_id)
+        # TODO: adopt logging    print("Fetching...", data_id)
         # while True:
         ret = self.getdata(data_id, include_empty=False)
         if ret is None:
@@ -71,7 +71,7 @@ class StorageInterface(asThread, Storage, ABC):
             history = self.fetchhistory(data)
         else:
             history = data.history
-        print("> > > > > > > > > fetched?", data_id, ret)
+        # TODO: adopt logging    print("> > > > > > > > > fetched?", data_id, ret)
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
     def store(self, data: Data, unlock=False, ignoredup=False, lazy=False):
@@ -148,8 +148,9 @@ class StorageInterface(asThread, Storage, ABC):
                 self.unlock(d.id)
 
             # History.
-            datauuid, ok = Root.uuid, False
+            datauuid = Root.uuid
             for step in list(d.history):
+                # TODO: adopt logging    print("ssssssssSSSSSSSSSSSS", step.id)
                 if not self.hasstep(step.id):
                     self.storestep(step)
 
@@ -158,13 +159,15 @@ class StorageInterface(asThread, Storage, ABC):
                 # Here, locked=NULL means 'placeholder', which can be updated in the future if the same data happens to be truly stored.
                 # We assume it is faster to do a single insertignore than select+insert, hence ignoredup=True here.
                 self.putdata(datauuid.id, step.id, None, False, parent_uuid.id, None, ignoredup=True)
+                # TODO: adopt logging    print(datauuid, 3333333333333333333333333333333333333333)
 
             if not lazy:
+                # TODO: adopt logging    print(d.id, 7777777777777777777777777777777)
                 self.putfields([(d.id, fname, fuuid.id) for fname, fuuid in d.uuids.items()])
         return lst[0]
 
     def fetchhistory(self, id):
-        print("Fetching history...", id)
+        # TODO: adopt logging    print("Fetching history...", id)
         steps = []
         while True:
             ret = self.getdata(id)
@@ -175,14 +178,14 @@ class StorageInterface(asThread, Storage, ABC):
         history = History(steps[-1])
         for step in reversed(steps[:-1]):
             history <<= step
-        print("   ...history fetched!", id)
+        # TODO: adopt logging    print("   ...history fetched!", id)
         return history
 
     def fetchstep(self, id):
         """Return a Step object or None."""
-        print("Fetching step...", id)
+        # TODO: adopt logging    print("Fetching step...", id)
         r = self.getstep(id)
-        print("       ...fetched step?", id, bool(r), r)
+        # TODO: adopt logging    print("       ...fetched step?", id, bool(r), r)
         if r is None:
             return None
         r["config"] = json.loads(r["config"])
@@ -194,10 +197,10 @@ class StorageInterface(asThread, Storage, ABC):
 
     def getdata(self, id, include_empty=True):
         """Return a info for a Data object."""
-        print("Getting data...", id)
+        # TODO: adopt logging    print("Getting data...", id)
         r = self.do(self._getdata_, locals(), wait=True)
-        print("       ...got data?", id, bool(r))
-        print(r)
+        # TODO: adopt logging    print("       ...got data?", id, bool(r))
+        # TODO: adopt logging    print(r)
         return r
 
     def hasstep(self, id):
@@ -205,24 +208,24 @@ class StorageInterface(asThread, Storage, ABC):
 
     def getstep(self, id):
         """Return info for a Step object."""
-        print("Getting step...", id)
+        # TODO: adopt logging    print("Getting step...", id)
         r = self.do(self._getstep_, locals(), wait=True)
-        print("       ...got step?", id, bool(r))
+        # TODO: adopt logging    print("       ...got step?", id, bool(r))
         return r
 
     # REMINDER we check missing fields through hascontent()
     def getfields(self, id):
         """Return fields and content for a Data object."""
-        print("Getting fields...", id)
+        # TODO: adopt logging    print("Getting fields...", id)
         r = self.do(self._getfields_, locals(), wait=True)
-        print("       ...got fields?", id, bool(r))
+        # TODO: adopt logging    print("       ...got fields?", id, bool(r))
         return r
 
     def getcontent(self, id):
         """Return content."""
-        print("Getting content...", id)
+        # TODO: adopt logging    print("Getting content...", id)
         r = self.do(self._getcontent_, locals(), wait=True)
-        print("       ...got content?", id, bool(r))
+        # TODO: adopt logging    print("       ...got content?", id, bool(r))
         return r
 
     def hascontent(self, ids):
@@ -233,7 +236,7 @@ class StorageInterface(asThread, Storage, ABC):
 
         Returns list of deleted Data object uuids
         """
-        print("Deleting...", data.id)
+        # TODO: adopt logging    print("Deleting...", data.id)
         ids = []
         while True:
             id = data.id
@@ -242,55 +245,55 @@ class StorageInterface(asThread, Storage, ABC):
             if not recursive or not data.hasinner:
                 break
             data = data.inner
-        print("         ...deleted!", ids)
+        # TODO: adopt logging    print("         ...deleted!", ids)
         return ids
 
     def lock(self, id, check_existence=True):
         """Return whether it succeeded."""
-        print("Locking...", id)
+        # TODO: adopt logging    print("Locking...", id)
         if check_existence and self.hasdata(id):
             raise Exception("Cannot lock, data already exists:", id)
         r = self.do(self._lock_, {"id": id}, wait=True)
-        print("    ...locked?", id, bool(r))
+        # TODO: adopt logging    print("    ...locked?", id, bool(r))
         return r
 
     def deldata(self, id, check_success=True):
         """Return whether it succeeded."""
-        print("Deleting data...", id)
+        # TODO: adopt logging    print("Deleting data...", id)
         r = self.do(self._deldata_, {"id": id}, wait=True)
         if check_success and not r:
             raise Exception("Cannot unlock, data does not exist:", id)
-        print("    ...deleted?", id, bool(r))
+        # TODO: adopt logging    print("    ...deleted?", id, bool(r))
         return r
 
     def unlock(self, id, check_success=True):
         """Return whether it succeeded."""
-        print("Unlocking...", id)
+        # TODO: adopt logging    print("Unlocking...", id)
         r = self.do(self._unlock_, {"id": id}, wait=True)
         if check_success and not r:
             raise Exception("Cannot unlock, data does not exist:", id)
-        print("    ...unlocked?", id, bool(r))
+        # TODO: adopt logging    print("    ...unlocked?", id, bool(r))
         return r
 
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
         """Return whether it succeeded."""
-        print("Putting data...", id)
+        # TODO: adopt logging    print("Putting data...", id)
         r = self.do(self._putdata_, locals(), wait=True)
-        print("    ...putdata?", id, bool(r))
+        # TODO: adopt logging    print("    ...putdata?", id, bool(r))
         return r
 
     def putcontent(self, id, value, ignoredup=False):
         """Return whether it succeeded."""
-        print("Putting content...", id)
+        # TODO: adopt logging    print("Putting content...", id)
         r = self.do(self._putcontent_, locals(), wait=True)
-        print("    ...putcontent?", id, bool(r))
+        # TODO: adopt logging    print("    ...putcontent?", id, bool(r))
         return r
 
     def putfields(self, rows, ignoredup=False):
-        """Return whether it succeeded."""
-        print("Putting fields...", rows)
+        """Return number of fields put."""
+        # TODO: adopt logging    print("Putting fields...", rows)
         r = self.do(self._putfields_, locals(), wait=True)
-        print("    ...put fields?", bool(r), rows)
+        # TODO: adopt logging    print("    ...put fields?", r, rows)
         return r
 
     def storestep(self, step, dump=None, ignoredup=False):
@@ -299,203 +302,11 @@ class StorageInterface(asThread, Storage, ABC):
 
     def putstep(self, id, name, path, config, dump=None, ignoredup=False):
         """Return whether it succeeded."""
-        print("Putting step...", id)
+        # TODO: adopt logging    print("Putting step...", id)
         r = self.do(self._putstep_, locals(), wait=True)
-        print("    ...put step?", id, bool(r))
+        # TODO: adopt logging    print("    ...put step?", id, bool(r))
         return r
 
-    # ================================================================================
-    #     @abstractmethod
-    #     def _putdata_(self, **row):
-    #     pass
-    #
-    #     @abstractmethod
-    #     def _putcontent_(self, id, value):
-    #     pass
-    #
-    #     @abstractmethod
-    #     def _putstep_(self, id, name, path, config, dump=None):
-    #     pass
-    #
-    #     @abstractmethod
-    #     def _store_(self, data: Data, check_dup=True):
-    #     pass
-    #
-    #     def delete(self, data: Data, check_missing=True, recursive=True):
-    #     """Remove Data object, but keeps contents of the fields (even if not used by anyone else).
-    #
-    #     Returns list of deleted Data object uuids
-    #     """
-    #     uuids = []
-    #     while data:
-    #         if self.threaded:
-    #             self.queue.put({"delete": data.picklable, "check_missing": check_missing})
-    #         else:
-    #             self._delete_(data.picklable, check_missing)
-    #         uuids.append(data.uuid)
-    #         if not recursive:
-    #             break
-    #         data = data.inner
-    #     return uuids
-    #
-    #     def store(self, data: Data, check_dup=True, recursive=True):
-    #     """
-    #     # The sequence of queries is planned to minimize traffic and CPU load,
-    #     # otherwise it would suffice to just send 'insert or ignore' of dumps.
-    #
-    #     Parameters
-    #     ----------
-    #     data
-    #         Data object to store.
-    #     check_dup
-    #         Whether to waste time checking duplicates
-    #
-    #     Returns
-    #     -------
-    #     List of inserted (or hoped to be inserted for threaded storages) Data ids (only meaningful for Data objects with inner)
-    #
-    #     Exception
-    #     ---------
-    #     DuplicateEntryException
-    #     :param data:
-    #     :param check_dup:
-    #     :param recursive:
-    #     """
-    #     if data.stream:
-    #         print("Cannot store Data objects containing a stream.")
-    #         exit()
-    #     # traverse all nested inner Data objects
-    #     lst = []
-    #     while data:
-    #         lst.append({"store": data.picklable, "check_dup": check_dup})
-    #         if not recursive:
-    #             break
-    #         data = data.inner
-    #         check_dup = False
-    #         # We disable check_dup here because the fetch attempt to verify existence
-    #         # only happened (at most) for outer data (moreover, sending of matrices is optimized, anyway).
-    #         # REMINDER: Cache could not traverse fetching/storing because it doesn't know
-    #         # how to process inner data, it only knows how to apply a step to the outer data as a whole.
-    #     # insert from last to first due to foreign key constraint on inner->data.id
-    #     for job in reversed(lst):
-    #         if self.threaded:
-    #             self.queue.put(job)
-    #         else:
-    #             self._store_(job["store"], check_dup)
-    #     return [job["store"].id for job in reversed(lst)]
-    #
-    #     def fetch(self, data: Data, lock=False, recursive=True) -> AbsData:
-    #     """Fetch data from DB.
-    #
-    #     Parameters
-    #     ----------
-    #     data
-    #         Data object before being transformed by a pipeline.
-    #     lock
-    #         Whether to mark entry (input data and pipeline combination) as
-    #         locked, when no data is found for the entry.
-    #
-    #     Returns
-    #     -------
-    #     Data or None
-    #
-    #     Exception
-    #     ---------
-    #     LockedEntryException, FailedEntryException
-    #     :param data:
-    #     :param lock:
-    #     :param recursive:
-    #     """
-    #     # TODO: accept id string
-    #     data = self.fetch_picklable(data, lock, recursive)
-    #     return data and data.unpicklable
-    #
-    #     def fetch_picklable(self, data: Data, lock=False, recursive=True) -> Union[AbsData, Data]:
-    #     data = data.picklable if isinstance(data, AbsData) else data
-    #
-    #     @abstractmethod
-    #     def _fetch_(self, data: Data, lock=False) -> Optional[Data]:
-    #     pass
-    #
-    #     @abstractmethod
-    #     def fetch_field(self, _id):
-    #     pass
-    #
-    #     @abstractmethod
-    #     def _unlock_(self, data):
-    #     pass
-    #
-    #     def unlock(self, data):
-    #     if self.threaded:
-    #         self.queue.put({"unlock": data})
-    #     else:
-    #         self._unlock_(data)
-    #
-    #     def update_remote(self, storage):
-    #     """Sync, sending Data objects from this storage to the provided one."""
-    #     if self.threaded:
-    #         if storage.isopen:
-    #             raise Exception("A threaded storage cannot update a remote that was already opened before.")
-    #         import dill
-    #         self.queue.put({"update_remote": dill.dumps(storage)})
-    #     else:
-    #         self._update_remote_(storage)
-    #
-    #     def hascontent(self, id):
-    #     if self.threaded:
-    #         self.queue.put({"hascontent": id})
-    #         return self._waited_result()
-    #     else:
-    #         return self._hascontent_(id)
-    #
-    #     def putdata(self, **row):
-    #     if self.threaded:
-    #         self.queue.put({"putdata": row})
-    #     else:
-    #         self._putdata_(**row)
-    #
-    #     def putcontent(self, id, value):
-    #     if self.threaded:
-    #         self.queue.put({"putcontent": id, "value": value})
-    #     else:
-    #         self._putcontent_(id, value)
-    #
-    #     def putstep(self, id, name, path, config, dump=None):
-    #     if self.threaded:
-    #         self.queue.put({"putstep": id, "name": name, "path": path, "config": config, "dump": dump})
-    #     else:
-    #         self._putstep_(id, name, path, config, dump)
-    #
-    #     @abstractmethod
-    #     def _update_remote_(self, storage_func):
-    #     pass
-    #
-    #     @abstractmethod
-    #     def _fetch_children_(self, data: Data) -> List[AbsData]:
-    #     pass
-    #
-    #     # TODO o q fazer qnd uuid nao existe? ta dizendo q nao tem filho
-    #     def fetch_children(self, data: Data) -> List[AbsData]:
-    #     self.queue.put({"children": data})
-    #
-    #     # Wait for result.
-    #     output = self.outqueue.get()
-    #     if not isinstance(output, list):
-    #         print("type:", type(output), output)
-    #         print(f"Couldn't fetch children of {id}. Quiting...")
-    #         self.outqueue.task_done()
-    #         exit()
-    #     self.outqueue.task_done()
-    #     return output
-    #
-    #
-    #
-    #
-    # class FailedEntryException(Exception):
-    #     """This input data has already failed before."""
-    #
-
-    # ================================================================================
     @abstractmethod
     def _hasdata_(self, id, include_empty):
         pass

@@ -43,7 +43,8 @@ class asThread(ABC):
         if self.isopen:
             raise Exception("Already open!")
         if self.isthreaded:
-            raise Exception("Cannot manually open a threaded storage!\nHINT: just use it, that the thread will take care of opening if still neeeded.")
+            raise Exception(
+                "Cannot manually open a threaded storage!\nHINT: just use it, that the thread will take care of opening if still neeeded.")
         self._open_()
         self.isopen = True
 
@@ -62,7 +63,7 @@ class asThread(ABC):
                 self.outqueue = JoinableQueue()
                 # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
                 self.mythread = threading.Thread(target=self._worker, daemon=False)
-                print("Starting thread for", self.__class__.__name__)
+                # TODO: adopt logging    print("Starting thread for", self.__class__.__name__)
                 self.mythread.start()
         elif not self.isopen:
             self.open()
@@ -134,11 +135,10 @@ class asThread(ABC):
                     else:
                         print("Unexpected job:", job)
                 except Exception as e:
-                    print(f"Problem while processing job {job}:", e)
+                    # print(f"Problem while processing job {job}:", e)
                     if threading.main_thread().is_alive():
                         self.outqueue.put(e)
-                    raise
-
+                    break
             except Empty:
                 break
 

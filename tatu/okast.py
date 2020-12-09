@@ -25,7 +25,6 @@ import requests
 
 from cruipto.uuid import UUID
 from tatu.storageinterface import StorageInterface
-from aiuna.compression import pack
 
 
 def j(r):
@@ -49,82 +48,73 @@ class OkaSt(StorageInterface):
         super().__init__(threaded, timeout=6,
                          close_when_idle=close_when_idle)  # TODO: check if threading will destroy oka
 
+    def intercept_errors(self, url, method, **kwargs):
+        r = getattr(self.requests, method)(self.prefix + url, headers=self.headers, **kwargs)
+        if r.ok:
+            return r
+        raise Exception(j(r)["errors"]["json"])
+
     def _uuid_(self):
         # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
-        r = self.requests.get(self.prefix + f"/api/sync_uuid", headers=self.headers)
-        return UUID(j(r)["uuid"])
+        return UUID(j(self.intercept_errors(f"/api/sync_uuid", "get"))["uuid"])
 
     def _hasdata_(self, id, include_empty):
-        url = self.prefix + f"/api/sync?uuids={id}&cat=data&fetch=false&empty={include_empty}"
-        r = self.requests.get(url, headers=self.headers)
-        return j(r)["has"]
+        url = f"/api/sync?uuids={id}&cat=data&fetch=false&empty={include_empty}"
+        return j(self.intercept_errors(url, "get"))["has"]
 
     def _getdata_(self, id, include_empty):
-        url = self.prefix + f"/api/sync?uuids={id}&cat=data&fetch=true&empty={include_empty}"
-        r = self.requests.get(url, headers=self.headers)
-        return j(r)
+        url = f"/api/sync?uuids={id}&cat=data&fetch=true&empty={include_empty}"
+        return j(self.intercept_errors(url, "get"))
 
     def _hasstep_(self, id):
-        url = self.prefix + f"/api/sync?uuids={id}&cat=step&fetch=false"
-        r = self.requests.get(url, headers=self.headers)
-        return j(r)["has"]
+        url = f"/api/sync?uuids={id}&cat=step&fetch=false"
+        return j(self.intercept_errors(url, "get"))["has"]
 
     def _getstep_(self, id):
-        url = self.prefix + f"/api/sync?uuids={id}&cat=step&fetch=true"
-        r = self.requests.get(url, headers=self.headers)
-        return j(r)
+        url = f"/api/sync?uuids={id}&cat=step&fetch=true"
+        return j(self.intercept_errors(url, "get"))
 
     def _getfields_(self, id):
-        url = self.prefix + f"/api/sync/{id}/fields"
-        r = self.requests.get(url, headers=self.headers)
-        return j(r)
+        url = f"/api/sync/{id}/fields"
+        return j(self.intercept_errors(url, "get"))
 
     def _hascontent_(self, ids):
-        if len(ids) > 1:
-            print("                                     WARNING: cannot handle more than one content yet:", len(ids))
         uuids = "&".join([f"uuids={id}" for id in ids])
-        url = self.prefix + f"/api/sync?{uuids}&cat=content&fetch=false"
-        r = self.requests.get(url, headers=self.headers)
-        return j(r)["has"]
+        url = f"/api/sync?{uuids}&cat=content&fetch=false"
+        return j(self.intercept_errors(url, "get"))["has"]
 
     def _getcontent_(self, id):
-        url = self.prefix + f"/api/sync/{id}/content"
-        r = self.requests.get(url, headers=self.headers)
+        url = f"/api/sync/{id}/content"
+        r = self.intercept_errors(url, "get")
         return None if r.content == b'null\n' else r.content
 
     def _lock_(self, id):
-        url = self.prefix + f"/api/sync/{id}/lock"
-        r = self.requests.put(url, headers=self.headers)
-        return j(r)["success"]
+        url = f"/api/sync/{id}/lock"
+        return j(self.intercept_errors(url, "put"))["success"]
 
     def _unlock_(self, id):
-        url = self.prefix + f"/api/sync/{id}/unlock"
-        r = self.requests.put(url, headers=self.headers)
-        return j(r)["success"]
+        url = f"/api/sync/{id}/unlock"
+        return j(self.intercept_errors(url, "put"))["success"]
 
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup):
         kwargs = locals().copy()
         del kwargs["self"]
-        url = self.prefix + f"/api/sync?cat=data"
-        r = self.requests.post(url, headers=self.headers, json={"kwargs": kwargs})
-        return j(r)["success"]
+        url = f"/api/sync?cat=data"
+        return j(self.intercept_errors(url, "post", json={"kwargs": kwargs}))["success"]
 
     def _putfields_(self, rows, ignoredup):
-        url = self.prefix + f"/api/sync/fields?ignoredup={ignoredup}"
-        r = self.requests.post(url, headers=self.headers, json={"rows": rows})
-        return j(r)["success"]
+        url = f"/api/sync/fields?ignoredup={ignoredup}"
+        return j(self.intercept_errors(url, "post", json={"rows": rows}))["n"]
 
     def _putcontent_(self, id, value, ignoredup):
-        url = self.prefix + f"/api/sync/{id}/content?ignoredup={ignoredup}"
-        r = self.requests.post(url, headers=self.headers, files={'bina': value})
-        return j(r)["success"]
+        url = f"/api/sync/{id}/content?ignoredup={ignoredup}"
+        return j(self.intercept_errors(url, "post", files={'bina': value}))["success"]
 
     def _putstep_(self, id, name, path, config, dump, ignoredup):
         kwargs = locals().copy()
         del kwargs["self"]
-        url = self.prefix + f"/api/sync?cat=step"
-        r = self.requests.post(url, headers=self.headers, json={"kwargs": kwargs})
-        return j(r)["success"]
+        url = f"/api/sync?cat=step"
+        return j(self.intercept_errors(url, "post", json={"kwargs": kwargs}))["success"]
 
     def _deldata_(self, id):
         raise Exception(f"OkaSt cannot delete Data entries! HINT: deactivate post {id} on Oka.")
