@@ -72,7 +72,8 @@ class Tatu(Storage):
         elif backend == "oka":
             from tatu.okast import OkaSt
             token, url = db.split("@")
-            self.storage = OkaSt(token, alias, threaded, url, close_when_idle)  # TODO Accept user/login in OkaSt?
+            self.storage = OkaSt(token, alias, threaded, "http://" + url,
+                                 close_when_idle)  # TODO Accept user/login in OkaSt?
         else:
             raise Exception("Unknown DBMS backend:", url)
 
