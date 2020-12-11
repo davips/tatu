@@ -43,15 +43,16 @@ class asThread(ABC):
         if self.isopen:
             raise Exception("Already open!")
         if self.isthreaded:
-            raise Exception(
-                "Cannot manually open a threaded storage!\nHINT: just use it, that the thread will take care of opening if still neeeded.")
+            _ = self.threaded  # force start
+            return
         self._open_()
         self.isopen = True
 
     def close(self):
-        if self.isthreaded:
+        if self.isthreaded and self.queue:
             self.queue.put(None)
         self.isopen = False
+        self.mythread = None
 
     @property
     def threaded(self):
