@@ -126,4 +126,5 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
         return "".join(list(sum(zipped, ()))).replace('"None"', "NULL")
 
     def commit(self):
+        #print("LOGGING:::  commit")
         self.connection.commit()

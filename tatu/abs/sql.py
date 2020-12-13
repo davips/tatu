@@ -22,16 +22,21 @@
 #  Relevant employers or funding agencies will be notified accordingly.
 from abc import ABC
 from sqlite3 import IntegrityError as sqliteIntegError
+
 from pymysql import IntegrityError as myIntegError
 
+from akangatu.transf.noop import NoOp
 from cruipto.uuid import UUID
 from tatu.abs.sqlreadonly import SQLReadOnly
 from tatu.abs.storage import LockedEntryException, DuplicateEntryException
-from akangatu.transf.noop import NoOp
 
 
 class SQL(SQLReadOnly, ABC):
     read_only = False
+
+    def _close_(self):
+        if self.connection and self.connection.open:
+            self.connection.close()
 
     def _deldata_(self, id):
         with self.cursor() as c:

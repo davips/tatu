@@ -37,18 +37,19 @@ from akangatu.transf.step import Step
 class StorageInterface(asThread, Storage, ABC):
     # TODO (strict) fetch by uuid
     # TODO (strict) store
-    def fetch(self, data, lock=False,
-              lazy=True):  # , recursive=True):   # TODO: pensar no include_empty=False se faz sentido
+    def fetch(self, data, lock=False, lazy=True):
+        # , recursive=True):   # TODO: pensar no include_empty=False se faz sentido
         """Fetch the data object fields on-demand.
          data: uuid string or a (probably still not fully evaluated) Data object."""
         data_id = data if isinstance(data, str) else data.id
         # lst = []
-        # TODO: adopt logging    print("Fetching...", data_id)
+        #print("LOGGING:::  Fetching...", data_id)
         # while True:
         ret = self.getdata(data_id, include_empty=True)
 
         if ret is None or not ret["uuids"]:
-            # REMINDER: check_existence false porque pode ser um data vazio [e é para o Cache funcionar mesmo que ele tenha sido interrompido]
+            # REMINDER: check_existence false porque pode ser um data vazio
+            # [e é para o Cache funcionar mesmo que ele tenha sido interrompido]
             if lock and not self.lock(data_id, check_existence=False):
                 raise Exception("Could not lock data:", data_id)
             return
@@ -74,7 +75,7 @@ class StorageInterface(asThread, Storage, ABC):
             history = self.fetchhistory(data)
         else:
             history = data.history
-        # TODO: adopt logging    print("> > > > > > > > > fetched?", data_id, ret)
+        #print("LOGGING:::  > > > > > > > > > fetched?", data_id, ret)
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
     def store(self, data: Data, unlock=False, ignoredup=False, lazy=False):
@@ -155,7 +156,7 @@ class StorageInterface(asThread, Storage, ABC):
             # History.
             datauuid = Root.uuid
             for step in list(d.history):
-                # TODO: adopt logging    print("ssssssssSSSSSSSSSSSS", step.id)
+                #print("LOGGING:::  ssssssssSSSSSSSSSSSS", step.id)
                 if not self.hasstep(step.id):
                     self.storestep(step)
 
@@ -172,7 +173,7 @@ class StorageInterface(asThread, Storage, ABC):
         return lst[0]
 
     def fetchhistory(self, id):
-        # TODO: adopt logging    print("Fetching history...", id)
+        #print("LOGGING:::  Fetching history...", id)
         steps = []
         while True:
             ret = self.getdata(id)
@@ -183,14 +184,14 @@ class StorageInterface(asThread, Storage, ABC):
         history = History(steps[-1])
         for step in reversed(steps[:-1]):
             history <<= step
-        # TODO: adopt logging    print("   ...history fetched!", id)
+        #print("LOGGING:::     ...history fetched!", id)
         return history
 
     def fetchstep(self, id):
         """Return a Step object or None."""
-        # TODO: adopt logging    print("Fetching step...", id)
+        #print("LOGGING:::  Fetching step...", id)
         r = self.getstep(id)
-        # TODO: adopt logging    print("       ...fetched step?", id, bool(r), r)
+        #print("LOGGING:::         ...fetched step?", id, bool(r), r)
         if r is None:
             return None
         r["config"] = json.loads(r["config"])
@@ -202,9 +203,9 @@ class StorageInterface(asThread, Storage, ABC):
 
     def getdata(self, id, include_empty=True):
         """Return a info for a Data object."""
-        # TODO: adopt logging    print("Getting data...", id)
+        #print("LOGGING:::  Getting data...", id)
         r = self.do(self._getdata_, locals(), wait=True)
-        # TODO: adopt logging    print("       ...got data?", id, bool(r))
+        #print("LOGGING:::         ...got data?", id, bool(r))
         # TODO: adopt logging    print(r)
         return r
 
@@ -213,24 +214,24 @@ class StorageInterface(asThread, Storage, ABC):
 
     def getstep(self, id):
         """Return info for a Step object."""
-        # TODO: adopt logging    print("Getting step...", id)
+        #print("LOGGING:::  Getting step...", id)
         r = self.do(self._getstep_, locals(), wait=True)
-        # TODO: adopt logging    print("       ...got step?", id, bool(r))
+        #print("LOGGING:::         ...got step?", id, bool(r))
         return r
 
     # REMINDER we check missing fields through hascontent()
     def getfields(self, id):
         """Return fields and content for a Data object."""
-        # TODO: adopt logging    print("Getting fields...", id)
+        #print("LOGGING:::  Getting fields...", id)
         r = self.do(self._getfields_, locals(), wait=True)
-        # TODO: adopt logging    print("       ...got fields?", id, bool(r))
+        #print("LOGGING:::         ...got fields?", id, bool(r))
         return r
 
     def getcontent(self, id):
         """Return content."""
-        # TODO: adopt logging    print("Getting content...", id)
+        #print("LOGGING:::  Getting content...", id)
         r = self.do(self._getcontent_, locals(), wait=True)
-        # TODO: adopt logging    print("       ...got content?", id, bool(r))
+        #print("LOGGING:::         ...got content?", id, bool(r))
         return r
 
     def hascontent(self, ids):
@@ -241,7 +242,7 @@ class StorageInterface(asThread, Storage, ABC):
 
         Returns list of deleted Data object uuids
         """
-        # TODO: adopt logging    print("Deleting...", data.id)
+        #print("LOGGING:::  Deleting...", data.id)
         ids = []
         while True:
             id = data.id
@@ -250,55 +251,55 @@ class StorageInterface(asThread, Storage, ABC):
             if not recursive or not data.hasinner:
                 break
             data = data.inner
-        # TODO: adopt logging    print("         ...deleted!", ids)
+        #print("LOGGING:::           ...deleted!", ids)
         return ids
 
     def lock(self, id, check_existence=True):
         """Return whether it succeeded."""
-        # TODO: adopt logging    print("Locking...", id)
+        #print("LOGGING:::  Locking...", id)
         if check_existence and self.hasdata(id):
             raise Exception("Cannot lock, data already exists:", id)
         r = self.do(self._lock_, {"id": id}, wait=True)
-        # TODO: adopt logging    print("    ...locked?", id, bool(r))
+        #print("LOGGING:::      ...locked?", id, bool(r))
         return r
 
     def deldata(self, id, check_success=True):
         """Return whether it succeeded."""
-        # TODO: adopt logging    print("Deleting data...", id)
+        #print("LOGGING:::  Deleting data...", id)
         r = self.do(self._deldata_, {"id": id}, wait=True)
         if check_success and not r:
             raise Exception("Cannot unlock, data does not exist:", id)
-        # TODO: adopt logging    print("    ...deleted?", id, bool(r))
+        #print("LOGGING:::      ...deleted?", id, bool(r))
         return r
 
     def unlock(self, id, check_success=True):
         """Return whether it succeeded."""
-        # TODO: adopt logging    print("Unlocking...", id)
+        #print("LOGGING:::  Unlocking...", id)
         r = self.do(self._unlock_, {"id": id}, wait=True)
         if check_success and not r:
             raise Exception("Cannot unlock, data does not exist:", id)
-        # TODO: adopt logging    print("    ...unlocked?", id, bool(r))
+        #print("LOGGING:::      ...unlocked?", id, bool(r))
         return r
 
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
         """Return whether it succeeded."""
-        # TODO: adopt logging    print("Putting data...", id)
+        #print("LOGGING:::  Putting data...", id)
         r = self.do(self._putdata_, locals(), wait=True)
-        # TODO: adopt logging    print("    ...putdata?", id, bool(r))
+        #print("LOGGING:::      ...putdata?", id, bool(r))
         return r
 
     def putcontent(self, id, value, ignoredup=False):
         """Return whether it succeeded."""
-        # TODO: adopt logging    print("Putting content...", id)
+        #print("LOGGING:::  Putting content...", id)
         r = self.do(self._putcontent_, locals(), wait=True)
-        # TODO: adopt logging    print("    ...putcontent?", id, bool(r))
+        #print("LOGGING:::      ...putcontent?", id, bool(r))
         return r
 
     def putfields(self, rows, ignoredup=False):
         """Return number of fields put."""
-        # TODO: adopt logging    print("Putting fields...", rows)
+        #print("LOGGING:::  Putting fields...", rows)
         r = self.do(self._putfields_, locals(), wait=True)
-        # TODO: adopt logging    print("    ...put fields?", r, rows)
+        #print("LOGGING:::      ...put fields?", r, rows)
         return r
 
     def storestep(self, step, dump=None, ignoredup=False):
@@ -307,9 +308,9 @@ class StorageInterface(asThread, Storage, ABC):
 
     def putstep(self, id, name, path, config, dump=None, ignoredup=False):
         """Return whether it succeeded."""
-        # TODO: adopt logging    print("Putting step...", id)
+        #print("LOGGING:::  Putting step...", id)
         r = self.do(self._putstep_, locals(), wait=True)
-        # TODO: adopt logging    print("    ...put step?", id, bool(r))
+        #print("LOGGING:::      ...put step?", id, bool(r))
         return r
 
     @abstractmethod

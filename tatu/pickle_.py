@@ -56,7 +56,7 @@ class Pickle(StorageInterface):
             raise MissingEntryException("Does not exist:", data.id)
         os.remove(locked)
 
-    def _fetch_(self, data: Data, lock=False) :
+    def _fetch_(self, data: Data, lock=False):
         # TODO: deal with fields and missing fields?
         filename = self._filename("*", data)
 
@@ -163,6 +163,9 @@ class Pickle(StorageInterface):
         os.remove(filename)
 
     def _open_(self):
+        pass
+
+    def _close_(self):
         pass
 
     def fetch_field(self, _id):

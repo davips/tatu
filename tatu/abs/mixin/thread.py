@@ -64,7 +64,7 @@ class asThread(ABC):
                 self.outqueue = JoinableQueue()
                 # self.__class__.mythread = multiprocessing.Process(target=self._worker, daemon=False)
                 self.mythread = threading.Thread(target=self._worker, daemon=False)
-                # TODO: adopt logging    print("Starting thread for", self.__class__.__name__)
+                #print("LOGGING:::  Starting thread for", self.__class__.__name__)
                 self.mythread.start()
         elif not self.isopen:
             self.open()
@@ -93,18 +93,33 @@ class asThread(ABC):
         return ret
 
     def _worker(self):
-        try:
-            self._open_()
+        # TODO: discover why flask reads old values from MySQL until restart,
+        #    so we can remove this reconnection from inside the while.
+        from tatu.sql.sqlite import SQLite
+        if isinstance(self, SQLite):
+            try:
+                self._open_()
+                self.isopen = True
+            except Exception as e:
+                print(e)
+                self.outqueue.put(e)
+                raise
+        else:
             self.isopen = True
-        except Exception as e:
-            print(e)
-            self.outqueue.put(e)
-            raise
 
         while self.isopen:
+            if not isinstance(self, SQLite):
+                try:
+                    self._open_()
+                    self.isopen = True
+                except Exception as e:
+                    print(e)
+                    self.outqueue.put(e)
+                    raise
+
             try:
                 if self.close_when_idle:
-                    # Smart timeout control, so we don't have to wait too much the thread after the main program is gone.
+                    # Smart timeout control,so we don't have to wait too much the thread after the main program is gone.
                     t, dt = 0, 0.25
                     job = None
                     while job is None and t < self.timeout:
@@ -142,7 +157,15 @@ class asThread(ABC):
                     break
             except Empty:
                 break
+            finally:
+                if not isinstance(self, SQLite):
+                    self._close_()
+        self._close_()
 
     @abstractmethod
     def _open_(self):
+        pass
+
+    @abstractmethod
+    def _close_(self):
         pass

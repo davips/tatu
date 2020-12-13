@@ -123,6 +123,9 @@ class OkaSt(StorageInterface):
     def _open_(self):
         pass  # nothing to open for okast
 
+    def _close_(self):
+        pass  # nothing to close for okast
+
 # TODO: consultar previamente o que falta enviar, p/ minimizar trafego
 #     #  TODO: enviar por field
 #     #  TODO: override store() para evitar travessia na classe mãe?
