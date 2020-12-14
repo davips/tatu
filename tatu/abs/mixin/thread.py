@@ -95,27 +95,25 @@ class asThread(ABC):
     def _worker(self):
         # TODO: discover why flask reads old values from MySQL until restart,
         #    so we can remove this reconnection from inside the while.
-        from tatu.sql.sqlite import SQLite
-        if isinstance(self, SQLite):
-            try:
-                self._open_()
-                self.isopen = True
-            except Exception as e:
-                print(e)
-                self.outqueue.put(e)
-                raise
-        else:
-            self.isopen = True
+        # from tatu.sql.sqlite import SQLite
+        # if isinstance(self, SQLite):
+        try:
+            self._open_()
+        except Exception as e:
+            print(e)
+            self.outqueue.put(e)
+            raise
 
+        self.isopen = True
         while self.isopen:
-            if not isinstance(self, SQLite):
-                try:
-                    self._open_()
-                    self.isopen = True
-                except Exception as e:
-                    print(e)
-                    self.outqueue.put(e)
-                    raise
+            # if not isinstance(self, SQLite):
+            #     try:
+            #         self._open_()
+            #         self.isopen = True
+            #     except Exception as e:
+            #         print(e)
+            #         self.outqueue.put(e)
+            #         raise
 
             try:
                 if self.close_when_idle:
@@ -157,9 +155,9 @@ class asThread(ABC):
                     break
             except Empty:
                 break
-            finally:
-                if not isinstance(self, SQLite):
-                    self._close_()
+            # finally:
+                # if not isinstance(self, SQLite):
+                #     self._close_()
         self._close_()
 
     @abstractmethod
