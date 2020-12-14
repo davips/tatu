@@ -35,7 +35,8 @@ class SQL(SQLReadOnly, ABC):
     read_only = False
 
     def _close_(self):
-        if self.connection and self.connection.open:
+        from tatu.sql.sqlite import SQLite
+        if self.connection and not isinstance(self, SQLite) and self.connection.open:
             self.connection.close()
 
     def _deldata_(self, id):
