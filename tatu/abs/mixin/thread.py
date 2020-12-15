@@ -95,19 +95,28 @@ class asThread(ABC):
     def _worker(self):
         # TODO: discover why flask reads old values from MySQL until restart,
         #    so we can remove this reconnection from inside the while.
+
+        # IF needed due to bug #-123
+        # File "/home/davi/git/oka-repository/backend/app/api/posts.py", line 319, in get
+        #     for m in data.Yt[0]:
+        # AttributeError: 'NoneType' object has no attribute 'Yt'
         from tatu.sql.sqlite import SQLite
         if isinstance(self, SQLite):
+
             try:
                 self._open_()
-                self.isopen = True
             except Exception as e:
                 print(e)
                 self.outqueue.put(e)
                 raise
-        else:
-            self.isopen = True
 
+        self.isopen = True
         while self.isopen:
+
+            # IF needed due to bug #-123
+            # File "/home/davi/git/oka-repository/backend/app/api/posts.py", line 319, in get
+            #     for m in data.Yt[0]:
+            # AttributeError: 'NoneType' object has no attribute 'Yt'
             if not isinstance(self, SQLite):
                 try:
                     self._open_()
@@ -157,9 +166,12 @@ class asThread(ABC):
                     break
             except Empty:
                 break
+
+            # needed due to bug #-123 explained above
             finally:
                 if not isinstance(self, SQLite):
                     self._close_()
+
         self._close_()
 
     @abstractmethod
