@@ -58,9 +58,9 @@ class SQL(SQLReadOnly, ABC):
                 self.run(c2, "select 1 as r from data where id=? and locked=1", [id])
                 r2 = c2.fetchone()
                 if r2 and "r" in r2:
-                    raise LockedEntryException(id)
+                    raise LockedEntryException(id, str(e))
                 else:
-                    raise DuplicateEntryException(id)
+                    raise DuplicateEntryException(id, str(e))
 
     def _lock_(self, id, ignoredup=False):
         # Placeholder values: step=identity and parent=own-id
