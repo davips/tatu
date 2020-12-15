@@ -26,7 +26,7 @@ from sqlite3 import IntegrityError as sqliteIntegError
 from pymysql import IntegrityError as myIntegError
 
 from akangatu.transf.noop import NoOp
-from cruipto.uuid import UUID
+from garoupa.uuid import UUID
 from tatu.abs.sqlreadonly import SQLReadOnly
 from tatu.abs.storage import LockedEntryException, DuplicateEntryException
 

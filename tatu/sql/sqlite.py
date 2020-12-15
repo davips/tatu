@@ -24,8 +24,8 @@
 import socket
 import sqlite3
 
-from cruipto.decorator import classproperty
-from cruipto.uuid import UUID
+from garoupa.decorator import classproperty
+from garoupa.uuid import UUID
 from tatu.abs.sql import SQL
 
 

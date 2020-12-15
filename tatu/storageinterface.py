@@ -27,7 +27,7 @@ from aiuna.compression import unpack, fpack
 from aiuna.content.data import Data
 from aiuna.content.root import Root
 from aiuna.history import History
-from cruipto.uuid import UUID
+from garoupa.uuid import UUID
 from akangatu.linalghelper import islazy
 from tatu.abs.mixin.thread import asThread
 from tatu.abs.storage import Storage, DuplicateEntryException, LockedEntryException

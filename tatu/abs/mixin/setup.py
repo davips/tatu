@@ -24,8 +24,8 @@ from abc import abstractmethod, ABC
 from contextlib import contextmanager
 
 from aiuna.content.root import Root
-from cruipto.decorator import classproperty
-from cruipto.uuid import UUID
+from garoupa.decorator import classproperty
+from garoupa.uuid import UUID
 from akangatu.transf.noop import NoOp
 
 

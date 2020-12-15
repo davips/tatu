@@ -24,7 +24,7 @@
 from typing import Optional, List
 
 from aiuna.content.data import Data
-from cruipto.uuid import UUID
+from garoupa.uuid import UUID
 from tatu.storageinterface import StorageInterface
 
 

@@ -24,16 +24,16 @@ import tatu
 NAME = "tatu"
 
 
-VERSION = 0.1
+VERSION = "0.20.12a"
 
 
 AUTHOR = 'Davi Pereira dos Santos'
 
 
-AUTHOR_EMAIL = ''
+AUTHOR_EMAIL = 'dpsbac@gmail.com'
 
 
-DESCRIPTION = 'Tatu Science'
+DESCRIPTION = 'Persistent Science'
 
 
 with open('README.md', 'r') as fh:
@@ -54,12 +54,12 @@ CLASSIFIERS = ['Intended Audience :: Science/Research',
                'Natural Language :: English',
                'Programming Language :: Python',
                'Topic :: Scientific/Engineering',
-               'Operating System :: Linux',
+#posix               'Operating System :: Linux',
                'Programming Language :: Python :: 3.8']
 
 
 INSTALL_REQUIRES = [
-    'numpy', 'sklearn', 'liac-arff', 'pymysql'
+    'numpy', 'sklearn', 'liac-arff', 'pymysql', 'aiuna'
 ]
 
 
