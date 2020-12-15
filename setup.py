@@ -19,8 +19,6 @@
 
 import setuptools
 
-import tatu
-
 NAME = "tatu"
 
 
