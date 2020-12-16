@@ -60,7 +60,7 @@ class Tatu(Storage):
     storage = None
 
     def __init__(self, url="sqlite://tatu-sqlite", threaded=True, alias=None, close_when_idle=False):
-        print("STORAGE:", url)
+        # print("STORAGE:", url)
         if "://" not in url:
             raise Exception("Missing '://' in url:", url)
         backend, db = url.split("://")
