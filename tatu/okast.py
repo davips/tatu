@@ -36,7 +36,7 @@ class OkaSt(StorageInterface):
     """Central remote storage"""
 
     def __init__(self, token, alias=None, threaded=True, url="http://localhost:5000", close_when_idle=False):
-        print("STORAGE: ", url)
+        # print("STORAGE: ", url)
         if not isinstance(url, str):
             self.requests = url
             self.headers = None
