@@ -120,6 +120,10 @@ class Storage(withIdentification, ABC):
     def unlock(self, id, check_success=True):
         """Return whether it succeeded."""
 
+    # @abstractmethod
+    # def putstream(self, data, pos, chunk, ignoredup=False):
+    #     """Return whether it succeeded."""
+
     @abstractmethod
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
         """Return whether it succeeded."""

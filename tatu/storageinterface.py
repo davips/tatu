@@ -281,6 +281,13 @@ class StorageInterface(asThread, Storage, ABC):
         #print("LOGGING:::      ...unlocked?", id, bool(r))
         return r
 
+    # def putstream(self, data, pos, chunk, ignoredup=False):
+    #     """Return whether it succeeded."""
+    #     #print("LOGGING:::  Putting stream...", id)
+    #     r = self.do(self._putstream_, locals(), wait=True)
+    #     #print("LOGGING:::      ...putstream?", id, bool(r))
+    #     return r
+
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
         """Return whether it succeeded."""
         #print("LOGGING:::  Putting data...", id)
