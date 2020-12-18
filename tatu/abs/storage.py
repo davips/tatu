@@ -78,8 +78,16 @@ class Storage(withIdentification, ABC):
         """ include_empty: whether to assess the existence of fields, instead of just the data row"""
 
     @abstractmethod
+    def hasstream(self, data):
+        """Verify existence of stream for a given dataid."""
+
+    @abstractmethod
     def getdata(self, id, include_empty=True):
         """Return info for a Data object."""
+
+    @abstractmethod
+    def getstream(self, data):
+        """Return rows with info for the stream of a given Data id."""
 
     @abstractmethod
     def hasstep(self, id):
@@ -120,9 +128,9 @@ class Storage(withIdentification, ABC):
     def unlock(self, id, check_success=True):
         """Return whether it succeeded."""
 
-    # @abstractmethod
-    # def putstream(self, data, pos, chunk, ignoredup=False):
-    #     """Return whether it succeeded."""
+    @abstractmethod
+    def putstream(self, rows, ignoredup=False):
+        """Return whether it succeeded."""
 
     @abstractmethod
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):

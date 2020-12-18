@@ -204,7 +204,7 @@ class withSetup(ABC):
         # Table to record stream, like folds of cross-validation (or chunks of a datastream?).
         sql = f"""
             create table if not exists stream (
-                data char(23) NOT NULL primary key,
+                data char(23) NOT NULL,
                 pos integer not null,
                 chunk char(23) NOT NULL,
                 unique (data, pos),

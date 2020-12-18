@@ -63,8 +63,16 @@ class OkaSt(StorageInterface):
         url = f"/api/sync?uuids={id}&cat=data&fetch=false&empty={include_empty}"
         return j(self.intercept_errors(url, "get"))["has"]
 
+    def _hasstream_(self, data):
+        url = f"/api/sync?uuids={data.id}&cat=stream&fetch=false"
+        return j(self.intercept_errors(url, "get"))["has"]
+
     def _getdata_(self, id, include_empty):
         url = f"/api/sync?uuids={id}&cat=data&fetch=true&empty={include_empty}"
+        return j(self.intercept_errors(url, "get"))
+
+    def _getstream_(self, data):
+        url = f"/api/sync?uuids={data}&cat=stream&fetch=true"
         return j(self.intercept_errors(url, "get"))
 
     def _hasstep_(self, id):
@@ -76,7 +84,7 @@ class OkaSt(StorageInterface):
         return j(self.intercept_errors(url, "get"))
 
     def _getfields_(self, id):
-        url = f"/api/sync/{id}/fields"
+        url = f"/api/sync/{id}/many&cat=fields"
         return j(self.intercept_errors(url, "get"))
 
     def _hascontent_(self, ids):
@@ -103,8 +111,12 @@ class OkaSt(StorageInterface):
         url = f"/api/sync?cat=data"
         return j(self.intercept_errors(url, "post", json={"kwargs": kwargs}))["success"]
 
+    def _putstream_(self, rows, ignoredup):
+        url = f"/api/sync/many?cat=stream&ignoredup={ignoredup}"
+        return j(self.intercept_errors(url, "post", json={"rows": rows}))["n"]
+
     def _putfields_(self, rows, ignoredup):
-        url = f"/api/sync/fields?ignoredup={ignoredup}"
+        url = f"/api/sync/many?cat=fields&ignoredup={ignoredup}"
         return j(self.intercept_errors(url, "post", json={"rows": rows}))["n"]
 
     def _putcontent_(self, id, value, ignoredup):

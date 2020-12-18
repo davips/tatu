@@ -55,9 +55,11 @@ class StorageInterface(asThread, Storage, ABC):
             return
 
         fields = {} if isinstance(data, str) else data.field_funcs_m
-        for field, fid in ret["uuids"].items():
-            if field == "stream":
-                fields[field] = lambda: self.getcontent(fid)  # TODO getstream() as iterator of lazyfetches
+        for field, fid in list(ret["uuids"].items()) + [("stream", None)]:
+            if field == "inner":
+                fields[field] = lambda: self.fetch(fid)
+            elif field == "stream":
+                fields[field] = lambda: self.fetchstream(data_id, lazy)
             elif field == "changed":
                 fields[field] = unpack(self.getcontent(fid)) if isinstance(data, str) else data.changed
             elif field not in ["inner"] and (isinstance(data, str) or field in data.changed):
@@ -65,8 +67,9 @@ class StorageInterface(asThread, Storage, ABC):
                     fields[field] = (lambda fid_: lambda: unpack(self.getcontent(fid_)))(fid)
                 else:
                     fields[field] = unpack(self.getcontent(fid))
+
+            # Call each lambda by a friendly name.
             if lazy and field != "changed":
-                # Call each lambda by a friendly name.
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
         if isinstance(data, str):
@@ -119,7 +122,8 @@ class StorageInterface(asThread, Storage, ABC):
                     id = held_data.uuids[k].id
                     if id in puts:
                         if k != "inner":
-                            # REMINDER/TODO: exceptionally two datasets can have some equal contents, like Xd; so we send it again while the hash is not based on content
+                            # TODO/REMINDER: exceptionally two datasets can have some equal contents, like Xd;
+                            #   so we send it again while the hash is not based on content
                             self.putcontent(id, fpack(held_data, k), ignoredup=True)
                 rows = [(held_data.id, fname, fuuid.id) for fname, fuuid in held_data.uuids.items() if fname != "inner"]
                 self.putfields(rows)
@@ -127,13 +131,21 @@ class StorageInterface(asThread, Storage, ABC):
 
             return lamb
 
+        streams = {}
         while True:
             # Fields.
             cids = [u.id for u in data.uuids.values()]
             missing = [cid for cid in cids if cid not in self.hascontent(cids)]
             if lazy:
+                # All fields will be evaluated at the time one of them is called.
                 field_funcs_copy = data.field_funcs_m.copy()
                 for field in data.field_funcs_m:
+                    if field == "stream":
+                        # data.field_funcs_m["stream"] = map(
+                        #     lambda d: self.store(d, unlock=True, lazy=False),
+                        #     data.field_funcs_m["stream"]
+                        # )
+                        raise Exception("A lazy storage cannot handle streams for now.")
                     data.field_funcs_m[field] = func(data, field, field_funcs_copy, missing)
                     data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
             else:
@@ -141,9 +153,12 @@ class StorageInterface(asThread, Storage, ABC):
                     id = data.uuids[k].id
                     if id in missing:
                         if k == "stream":
-                            self.putstream()
+                            # Consume stream, to be stored after putdata().
+                            streams[data.id] = list(data.stream)
+                        elif k == "inner":
+                            pass
                         else:
-                            content = v.id.encode() if k == "inner" else fpack(data, k)
+                            content = fpack(data, k)
                             # TODO/REMINDER: exceptionally two datasets can have some equal contents, like Xd;
                             #   so we send it again while the hash is not based on content
                             self.putcontent(id, content, ignoredup=True)
@@ -168,12 +183,25 @@ class StorageInterface(asThread, Storage, ABC):
                 datauuid = datauuid * step.uuid
                 # Here, locked=NULL means 'placeholder', which can be updated in the future if the same data happens to be truly stored.
                 # We assume it is faster to do a single insertignore than select+insert, hence ignoredup=True here.
-                self.putdata(datauuid.id, step.id, None, False, parent_uuid.id, None, ignoredup=True)
+                hasstream = datauuid == data.uuid and data.hasstream
+                inner = data.inner if data.hasinner else None
+                self.putdata(datauuid.id, step.id, inner, hasstream, parent_uuid.id, None, ignoredup=True)
                 # TODO: adopt logging    print(datauuid, 3333333333333333333333333333333333333333)
 
-            if not lazy:
+            if lazy:
                 # TODO: adopt logging    print(d.id, 7777777777777777777777777777777)
-                self.putfields([(d.id, fname, fuuid.id) for fname, fuuid in d.uuids.items()])
+                pass
+            else:
+                if d.id in streams:
+                    rows = []
+                    for pos, streamed_data in enumerate(streams[d.id]):
+                        self.store(streamed_data, ignoredup=True)
+                        rows.append((d.id, str(pos), streamed_data.id))
+                    self.putstream(rows)
+
+                    # Return a new iterator in the place of the original stream.
+                    data.field_funcs_m["stream"] = iter(streams[d.id])
+                self.putfields([(d.id, fname, fuuid.id) for fname, fuuid in d.uuids.items()], ignoredup=True)
         return lst[0]
 
     def fetchhistory(self, id):
@@ -190,6 +218,16 @@ class StorageInterface(asThread, Storage, ABC):
             history <<= step
         # print("LOGGING:::     ...history fetched!", id)
         return history
+
+    def fetchstream(self, dataid, lazy=True):
+        """Return a stream iterator or None."""
+        # print("LOGGING:::  Fetching step...", id)
+        rows = self.getstream(dataid)
+        # print("LOGGING:::         ...fetched step?", id, bool(r), r)
+        if rows is None:
+            return None
+        for r in rows:
+            yield self.fetch(r["chunk"], lazy=lazy)
 
     def fetchstep(self, id):
         """Return a Step object or None."""
@@ -209,6 +247,18 @@ class StorageInterface(asThread, Storage, ABC):
         """Return a info for a Data object."""
         # print("LOGGING:::  Getting data...", id)
         r = self.do(self._getdata_, locals(), wait=True)
+        # print("LOGGING:::         ...got data?", id, bool(r))
+        # TODO: adopt logging    print(r)
+        return r
+
+    def hasstream(self, data):
+        """Verify existence of a stream for the given dataid."""
+        return self.do(self._hasstream_, locals(), wait=True)
+
+    def getstream(self, data):
+        """Return rows with info for the stream of a given Data id."""
+        # print("LOGGING:::  Getting data...", id)
+        r = self.do(self._getstream_, locals(), wait=True)
         # print("LOGGING:::         ...got data?", id, bool(r))
         # TODO: adopt logging    print(r)
         return r
@@ -285,18 +335,18 @@ class StorageInterface(asThread, Storage, ABC):
         # print("LOGGING:::      ...unlocked?", id, bool(r))
         return r
 
-    # def putstream(self, data, pos, chunk, ignoredup=False):
-    #     """Return whether it succeeded."""
-    #     #print("LOGGING:::  Putting stream...", id)
-    #     r = self.do(self._putstream_, locals(), wait=True)
-    #     #print("LOGGING:::      ...putstream?", id, bool(r))
-    #     return r
-
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
         """Return whether it succeeded."""
         # print("LOGGING:::  Putting data...", id)
         r = self.do(self._putdata_, locals(), wait=True)
         # print("LOGGING:::      ...putdata?", id, bool(r))
+        return r
+
+    def putstream(self, rows, ignoredup=False):
+        """Return whether it succeeded."""
+        # print("LOGGING:::  Putting stream...", id)
+        r = self.do(self._putstream_, locals(), wait=True)
+        # print("LOGGING:::      ...putstream?", id, bool(r))
         return r
 
     def putcontent(self, id, value, ignoredup=False):
@@ -329,7 +379,15 @@ class StorageInterface(asThread, Storage, ABC):
         pass
 
     @abstractmethod
+    def _hasstream_(self, data):
+        pass
+
+    @abstractmethod
     def _getdata_(self, id, include_empty):
+        pass
+
+    @abstractmethod
+    def _getstream_(self, data):
         pass
 
     @abstractmethod
@@ -362,6 +420,10 @@ class StorageInterface(asThread, Storage, ABC):
 
     @abstractmethod
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup):
+        pass
+
+    @abstractmethod
+    def _putstream_(self, rows, ignoredup):
         pass
 
     @abstractmethod

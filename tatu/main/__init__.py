@@ -97,8 +97,14 @@ class Tatu(Storage):
     def hasdata(self, id, include_empty=False):
         return self.storage.hasdata(id, include_empty)
 
+    def hasstream(self, data):
+        return self.storage.hasstream(data)
+
     def getdata(self, id, include_empty=True):
         return self.storage.getdata(id, include_empty)
+
+    def getstream(self, data):
+        return self.storage.getstream(data)
 
     def hasstep(self, id):
         return self.storage.hasstep(id)
@@ -129,6 +135,9 @@ class Tatu(Storage):
 
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
         return self.storage.putdata(id, step, inn, stream, parent, locked, ignoredup)
+
+    def putstream(self, rows, ignoredup=False):
+        return self.storage.putstream(rows, ignoredup)
 
     def putcontent(self, id, value, ignoredup=False):
         return self.storage.putcontent(id, value, ignoredup)

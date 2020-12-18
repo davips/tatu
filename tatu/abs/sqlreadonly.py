@@ -42,6 +42,12 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
             self.run(c, sql, args)
             return c.fetchone() is not None
 
+    def _hasstream_(self, data):
+        sql = f"select 1 from stream where id=? and pos=0"
+        with self.cursor() as c:
+            self.run(c, sql, [data])
+            return c.fetchone() is not None
+
     def _getdata_(self, id, include_empty):
         cols = "step,inn,stream,parent,locked,name as field_name,content as field_id"
         sql = f"select {cols} from data d {'left' if include_empty else 'inner'} join field f on d.id=f.data where d.id=?"
@@ -58,6 +64,16 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
                 uuids[row["field_name"]] = row["field_id"]
         return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"],
                 "stream": row["stream"]}
+
+    def _getstream_(self, data):
+        sql = "select data,pos,chunk from stream where data=?"
+        with self.cursor() as c:
+            self.run(c, sql, [data])
+            # TODO: can this be passed around as an iterator? is it worth or will just increase the amount of latencies?
+            row = c.fetchall()
+        if len(row) == 0:
+            return
+        return row
 
     def _getstep_(self, id):
         sql = "select name,path,params from step s inner join config c on s.config=c.id where s.id=?"

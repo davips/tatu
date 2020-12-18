@@ -33,7 +33,9 @@ from tatu.abs.sql import SQL
 
 
 class MySQL(SQL):
-    def __init__(self, db="user:pass@ip/db", threaded=True, close_when_idle=False, storage_info=None, debug=False, read_only=False):
+    def __init__(self,
+                 db="user:pass@ip/db", threaded=True, close_when_idle=False, storage_info=None, debug=False,
+                 read_only=False):
         self._uuid = UUID((self.__class__.__name__ + db).encode())
         if "@" not in db:
             raise Exception("Missing @ at db url:", db)

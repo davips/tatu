@@ -86,9 +86,16 @@ class SQL(SQLReadOnly, ABC):
         sql = f"insert {'or ignore' if ignoredup else ''} INTO data values (null,?,?,?,?,?,?)"
         return self._handle_integrity_error(id, sql, [id, step, inn, stream, parent, locked])
 
+    def _putstream_(self, rows, ignoredup=False):
+        with self.cursor() as c:
+            self.write_many(c, rows, "stream", ignoredup)
+            self.commit()
+            r = c.rowcount
+        return r
+
     def _putfields_(self, rows, ignoredup=False):
         with self.cursor() as c:
-            self.write_many(c, rows, "field")
+            self.write_many(c, rows, "field", ignoredup)
             self.commit()
             return c.rowcount
 
@@ -323,8 +330,9 @@ class SQL(SQLReadOnly, ABC):
     #         self.query(f"delete from sync where storage=?", [stid], cursor2)
     #         self.query(f"insert into sync values (NULL, ?, ?, {self._now_function()})", [stid, did], cursor2)
 
-    def write_many(self, cursor, list_of_tuples, table):
-        sql = f"{self._insert_ignore} INTO {table} VALUES({('?,' * len(list_of_tuples[0]))[:-1]})"
+    def write_many(self, cursor, list_of_tuples, table, ignore_dup=True):
+        command = self._insert_ignore if ignore_dup else 'insert'
+        sql = f"{command} INTO {table} VALUES({('?,' * len(list_of_tuples[0]))[:-1]})"
 
         newlist_of_tuples = []
         for row in list_of_tuples:
