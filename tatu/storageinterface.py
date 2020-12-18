@@ -43,7 +43,7 @@ class StorageInterface(asThread, Storage, ABC):
          data: uuid string or a (probably still not fully evaluated) Data object."""
         data_id = data if isinstance(data, str) else data.id
         # lst = []
-        #print("LOGGING:::  Fetching...", data_id)
+        # print("LOGGING:::  Fetching...", data_id)
         # while True:
         ret = self.getdata(data_id, include_empty=True)
 
@@ -75,7 +75,7 @@ class StorageInterface(asThread, Storage, ABC):
             history = self.fetchhistory(data)
         else:
             history = data.history
-        #print("LOGGING:::  > > > > > > > > > fetched?", data_id, ret)
+        # print("LOGGING:::  > > > > > > > > > fetched?", data_id, ret)
         return Data(UUID(data_id), {k: UUID(v) for k, v in ret["uuids"].items()}, history, **fields)
 
     def store(self, data: Data, unlock=False, ignoredup=False, lazy=False):
@@ -140,9 +140,13 @@ class StorageInterface(asThread, Storage, ABC):
                 for k, v in data.items():
                     id = data.uuids[k].id
                     if id in missing:
-                        content = v.id.encode() if k == "inner" else fpack(data, k)
-                        # REMINDER/TODO: exceptionally two datasets can have some equal contents, like Xd; so we send it again while the hash is not based on content
-                        self.putcontent(id, content, ignoredup=True)
+                        if k == "stream":
+                            self.putstream()
+                        else:
+                            content = v.id.encode() if k == "inner" else fpack(data, k)
+                            # TODO/REMINDER: exceptionally two datasets can have some equal contents, like Xd;
+                            #   so we send it again while the hash is not based on content
+                            self.putcontent(id, content, ignoredup=True)
 
             lst.append(data)
             if not data.hasinner:
@@ -156,7 +160,7 @@ class StorageInterface(asThread, Storage, ABC):
             # History.
             datauuid = Root.uuid
             for step in list(d.history):
-                #print("LOGGING:::  ssssssssSSSSSSSSSSSS", step.id)
+                # print("LOGGING:::  ssssssssSSSSSSSSSSSS", step.id)
                 if not self.hasstep(step.id):
                     self.storestep(step)
 
@@ -173,7 +177,7 @@ class StorageInterface(asThread, Storage, ABC):
         return lst[0]
 
     def fetchhistory(self, id):
-        #print("LOGGING:::  Fetching history...", id)
+        # print("LOGGING:::  Fetching history...", id)
         steps = []
         while True:
             ret = self.getdata(id)
@@ -184,14 +188,14 @@ class StorageInterface(asThread, Storage, ABC):
         history = History(steps[-1])
         for step in reversed(steps[:-1]):
             history <<= step
-        #print("LOGGING:::     ...history fetched!", id)
+        # print("LOGGING:::     ...history fetched!", id)
         return history
 
     def fetchstep(self, id):
         """Return a Step object or None."""
-        #print("LOGGING:::  Fetching step...", id)
+        # print("LOGGING:::  Fetching step...", id)
         r = self.getstep(id)
-        #print("LOGGING:::         ...fetched step?", id, bool(r), r)
+        # print("LOGGING:::         ...fetched step?", id, bool(r), r)
         if r is None:
             return None
         r["config"] = json.loads(r["config"])
@@ -203,9 +207,9 @@ class StorageInterface(asThread, Storage, ABC):
 
     def getdata(self, id, include_empty=True):
         """Return a info for a Data object."""
-        #print("LOGGING:::  Getting data...", id)
+        # print("LOGGING:::  Getting data...", id)
         r = self.do(self._getdata_, locals(), wait=True)
-        #print("LOGGING:::         ...got data?", id, bool(r))
+        # print("LOGGING:::         ...got data?", id, bool(r))
         # TODO: adopt logging    print(r)
         return r
 
@@ -214,24 +218,24 @@ class StorageInterface(asThread, Storage, ABC):
 
     def getstep(self, id):
         """Return info for a Step object."""
-        #print("LOGGING:::  Getting step...", id)
+        # print("LOGGING:::  Getting step...", id)
         r = self.do(self._getstep_, locals(), wait=True)
-        #print("LOGGING:::         ...got step?", id, bool(r))
+        # print("LOGGING:::         ...got step?", id, bool(r))
         return r
 
     # REMINDER we check missing fields through hascontent()
     def getfields(self, id):
         """Return fields and content for a Data object."""
-        #print("LOGGING:::  Getting fields...", id)
+        # print("LOGGING:::  Getting fields...", id)
         r = self.do(self._getfields_, locals(), wait=True)
-        #print("LOGGING:::         ...got fields?", id, bool(r))
+        # print("LOGGING:::         ...got fields?", id, bool(r))
         return r
 
     def getcontent(self, id):
         """Return content."""
-        #print("LOGGING:::  Getting content...", id)
+        # print("LOGGING:::  Getting content...", id)
         r = self.do(self._getcontent_, locals(), wait=True)
-        #print("LOGGING:::         ...got content?", id, bool(r))
+        # print("LOGGING:::         ...got content?", id, bool(r))
         return r
 
     def hascontent(self, ids):
@@ -242,7 +246,7 @@ class StorageInterface(asThread, Storage, ABC):
 
         Returns list of deleted Data object uuids
         """
-        #print("LOGGING:::  Deleting...", data.id)
+        # print("LOGGING:::  Deleting...", data.id)
         ids = []
         while True:
             id = data.id
@@ -251,34 +255,34 @@ class StorageInterface(asThread, Storage, ABC):
             if not recursive or not data.hasinner:
                 break
             data = data.inner
-        #print("LOGGING:::           ...deleted!", ids)
+        # print("LOGGING:::           ...deleted!", ids)
         return ids
 
     def lock(self, id, check_existence=True):
         """Return whether it succeeded."""
-        #print("LOGGING:::  Locking...", id)
+        # print("LOGGING:::  Locking...", id)
         if check_existence and self.hasdata(id):
             raise Exception("Cannot lock, data already exists:", id)
         r = self.do(self._lock_, {"id": id}, wait=True)
-        #print("LOGGING:::      ...locked?", id, bool(r))
+        # print("LOGGING:::      ...locked?", id, bool(r))
         return r
 
     def deldata(self, id, check_success=True):
         """Return whether it succeeded."""
-        #print("LOGGING:::  Deleting data...", id)
+        # print("LOGGING:::  Deleting data...", id)
         r = self.do(self._deldata_, {"id": id}, wait=True)
         if check_success and not r:
             raise Exception("Cannot unlock, data does not exist:", id)
-        #print("LOGGING:::      ...deleted?", id, bool(r))
+        # print("LOGGING:::      ...deleted?", id, bool(r))
         return r
 
     def unlock(self, id, check_success=True):
         """Return whether it succeeded."""
-        #print("LOGGING:::  Unlocking...", id)
+        # print("LOGGING:::  Unlocking...", id)
         r = self.do(self._unlock_, {"id": id}, wait=True)
         if check_success and not r:
             raise Exception("Cannot unlock, data does not exist:", id)
-        #print("LOGGING:::      ...unlocked?", id, bool(r))
+        # print("LOGGING:::      ...unlocked?", id, bool(r))
         return r
 
     # def putstream(self, data, pos, chunk, ignoredup=False):
@@ -290,23 +294,23 @@ class StorageInterface(asThread, Storage, ABC):
 
     def putdata(self, id, step, inn, stream, parent, locked, ignoredup=False):
         """Return whether it succeeded."""
-        #print("LOGGING:::  Putting data...", id)
+        # print("LOGGING:::  Putting data...", id)
         r = self.do(self._putdata_, locals(), wait=True)
-        #print("LOGGING:::      ...putdata?", id, bool(r))
+        # print("LOGGING:::      ...putdata?", id, bool(r))
         return r
 
     def putcontent(self, id, value, ignoredup=False):
         """Return whether it succeeded."""
-        #print("LOGGING:::  Putting content...", id)
+        # print("LOGGING:::  Putting content...", id)
         r = self.do(self._putcontent_, locals(), wait=True)
-        #print("LOGGING:::      ...putcontent?", id, bool(r))
+        # print("LOGGING:::      ...putcontent?", id, bool(r))
         return r
 
     def putfields(self, rows, ignoredup=False):
         """Return number of fields put."""
-        #print("LOGGING:::  Putting fields...", rows)
+        # print("LOGGING:::  Putting fields...", rows)
         r = self.do(self._putfields_, locals(), wait=True)
-        #print("LOGGING:::      ...put fields?", r, rows)
+        # print("LOGGING:::      ...put fields?", r, rows)
         return r
 
     def storestep(self, step, dump=None, ignoredup=False):
@@ -315,9 +319,9 @@ class StorageInterface(asThread, Storage, ABC):
 
     def putstep(self, id, name, path, config, dump=None, ignoredup=False):
         """Return whether it succeeded."""
-        #print("LOGGING:::  Putting step...", id)
+        # print("LOGGING:::  Putting step...", id)
         r = self.do(self._putstep_, locals(), wait=True)
-        #print("LOGGING:::      ...put step?", id, bool(r))
+        # print("LOGGING:::      ...put step?", id, bool(r))
         return r
 
     @abstractmethod
