@@ -150,14 +150,12 @@ class StorageInterface(asThread, Storage, ABC):
                     data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
             else:
                 for k, v in data.items():
-                    id = data.uuids[k].id
-                    if id in missing:
-                        if k == "stream":
-                            # Consume stream, to be stored after putdata().
-                            streams[data.id] = list(data.stream)
-                        elif k == "inner":
-                            pass
-                        else:
+                    if k == "stream":
+                        # Consume stream, to be stored after putdata().
+                        streams[data.id] = list(data.stream)
+                    else:
+                        id = data.uuids[k].id
+                        if id in missing and k != "inner":
                             content = fpack(data, k)
                             # TODO/REMINDER: exceptionally two datasets can have some equal contents, like Xd;
                             #   so we send it again while the hash is not based on content
@@ -173,19 +171,21 @@ class StorageInterface(asThread, Storage, ABC):
                 self.unlock(d.id)
 
             # History.
-            datauuid = Root.uuid
+            ancestor_duuid = Root.uuid
             for step in list(d.history):
                 # print("LOGGING:::  ssssssssSSSSSSSSSSSS", step.id)
                 if not self.hasstep(step.id):
                     self.storestep(step)
 
-                parent_uuid = datauuid
-                datauuid = datauuid * step.uuid
+                parent_uuid = ancestor_duuid
+                ancestor_duuid = ancestor_duuid * step.uuid
                 # Here, locked=NULL means 'placeholder', which can be updated in the future if the same data happens to be truly stored.
                 # We assume it is faster to do a single insertignore than select+insert, hence ignoredup=True here.
-                hasstream = datauuid == data.uuid and data.hasstream
-                inner = data.inner if data.hasinner else None
-                self.putdata(datauuid.id, step.id, inner, hasstream, parent_uuid.id, None, ignoredup=True)
+                if ancestor_duuid == d.uuid:
+                    hasstream, inner = d.hasstream, d.inner if d.hasinner else None
+                else:
+                    hasstream, inner = False, None
+                self.putdata(ancestor_duuid.id, step.id, inner, hasstream, parent_uuid.id, None, ignoredup=True)
                 # TODO: adopt logging    print(datauuid, 3333333333333333333333333333333333333333)
 
             if lazy:
@@ -200,7 +200,7 @@ class StorageInterface(asThread, Storage, ABC):
                     self.putstream(rows)
 
                     # Return a new iterator in the place of the original stream.
-                    data.field_funcs_m["stream"] = iter(streams[d.id])
+                    d.field_funcs_m["stream"] = iter(streams[d.id])
                 self.putfields([(d.id, fname, fuuid.id) for fname, fuuid in d.uuids.items()], ignoredup=True)
         return lst[0]
 
