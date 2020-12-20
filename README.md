@@ -10,6 +10,8 @@
 
 
 # Grants
+Part of the effort spent in the present code was kindly supported by Fapesp under supervision of
+Prof. André C. P. L. F. de Carvalho at CEPID-CeMEAI (Grants 2013/07375-0 – 2019/01735-0).
 
 # History
 The novel ideias presented here are a result of a years-long
