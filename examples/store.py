@@ -1,6 +1,9 @@
+from time import sleep
+
 from aiuna.step.file import File
 
 from tatu.sql.mysql import MySQL
+
 
 #
 # f = open("/tmp/a", "bw")
@@ -9,8 +12,23 @@ from tatu.sql.mysql import MySQL
 # f.close()
 #
 # exit()
+def f():
+    print("1111111111\n", 111111111111111100000000000000000000)
+    File("airlines200k.arff").data
+    print("1111111111\n", 2222222222222222200000000000000000000)
+    # print(data.X)
 
-data = File("iris.arff").data
-# print(data.X)
-storage = MySQL()
-storage.store(data)
+def g():
+    print("1111111111\n", 10000)
+    data = File("airlines200k.arff").data
+    print("1111111111\n", 1000000000000000)
+    storage = MySQL("tatu:kururu@localhost/tatu")
+    print("1111111111\n", 1111111111111111)
+    storage.store(data)
+    print("1111111111\n", 22222222222222222)
+
+
+f()
+sleep(50)
+g()
+sleep(5000)
