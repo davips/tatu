@@ -24,9 +24,16 @@ from abc import abstractmethod, ABC
 from contextlib import contextmanager
 
 from aiuna.content.root import Root
+from akangatu.transf.noop import NoOp
 from garoupa.decorator import classproperty
 from garoupa.uuid import UUID
-from akangatu.transf.noop import NoOp
+
+
+class Setup:
+    """
+    >>> 1
+    1
+    """
 
 
 class withSetup(ABC):
