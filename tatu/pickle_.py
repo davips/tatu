@@ -21,21 +21,71 @@
 #  time spent here.
 #  Relevant employers or funding agencies will be notified accordingly.
 
-import _pickle as pickle
 import json
 import os
 import traceback
 from glob import glob
 from pathlib import Path
-from typing import Optional, List
+
+import _pickle as pickle
 
 from aiuna.content.data import Data
 from garoupa.uuid import UUID
+from tatu.abs.storage import MissingEntryException, LockedEntryException, DuplicateEntryException, \
+    UnlockedEntryException
 from tatu.disk import save, load
 from tatu.storageinterface import StorageInterface
 
 
 class Pickle(StorageInterface):
+    def _hasdata_(self, id, include_empty):
+        pass
+
+    def _hasstream_(self, data):
+        pass
+
+    def _getdata_(self, id, include_empty):
+        pass
+
+    def _getstream_(self, data):
+        pass
+
+    def _hasstep_(self, id):
+        pass
+
+    def _getstep_(self, id):
+        pass
+
+    def _getfields_(self, id):
+        pass
+
+    def _hascontent_(self, ids):
+        pass
+
+    def _getcontent_(self, id):
+        pass
+
+    def _lock_(self, id):
+        pass
+
+    def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup):
+        pass
+
+    def _putstream_(self, rows, ignoredup):
+        pass
+
+    def _putfields_(self, rows, ignoredup):
+        pass
+
+    def _putcontent_(self, id, value, ignoredup):
+        pass
+
+    def _putstep_(self, id, name, path, config, dump, ignoredup):
+        pass
+
+    def _deldata_(self, id):
+        pass
+
     def _fetch_children_(self, data: Data):
         raise Exception("Storage Pickle cannot retrieve children!")
 
@@ -75,9 +125,9 @@ class Pickle(StorageInterface):
 
         transformed_data = self._load(filename)
 
-        # Failed?
-        if transformed_data.failure is not None:
-            raise FailedEntryException(transformed_data.failure)
+        # # Failed?
+        # if transformed_data.failure is not None:
+        #     raise FailedEntryException(transformed_data.failure)
 
         return transformed_data
 
@@ -181,13 +231,13 @@ class Pickle(StorageInterface):
     #     return datas
 
 
-def sqlite_Test():
-    from tatu.sql.sqlite import SQLite
-    from aiuna.step.file import File
-    data = File("iris.arff").data
-    SQLite().delete(data, check_missing=False)
-    SQLite().store(data)
-    print(SQLite().visual_history(File("iris.arff").data.id))
+# def sqlite_Test():
+#     from tatu.sql.sqlite import SQLite
+#     from aiuna.step.file import File
+#     data = File("iris.arff").data
+#     SQLite().delete(data, check_missing=False)
+#     SQLite().store(data)
+#     print(SQLite().visual_history(File("iris.arff").data.id))
 
 # from tatu.sql.sqlite import SQLite
 # PickleServer().store(File("iris.arff").data)
