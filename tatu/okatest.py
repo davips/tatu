@@ -27,17 +27,17 @@ from aiuna.step.file import File
 from tatu.okast import OkaSt
 from aiuna.content.creation import read_arff
 
-with open("token.txt", "r") as f:
-    token = json.load(f)["token"]
+#with open("token.txt", "r") as f:
+    #token = json.load(f)["token"]
 
-storage = OkaSt(post=True, token=token)
+#storage = OkaSt(token=token)
 
-print("Reading file...")
-data = File("iris.arff")
+#print("Reading file...")
+#data = File("iris.arff")
 
-print("Storing...")
-storage.store(data)  # TODO: it is always sending the file, even when not needed
+#print("Storing...")
+#storage.store(data)  # TODO: it is always sending the file, even when not needed
 
-print("Fetching...")
-d = storage.fetch(data.id)
-print(d)
+#print("Fetching...")
+#d = storage.fetch(data.id)
+#print(d)

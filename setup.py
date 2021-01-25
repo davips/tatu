@@ -57,7 +57,7 @@ CLASSIFIERS = ['Intended Audience :: Science/Research',
 
 
 INSTALL_REQUIRES = [
-    'numpy', 'sklearn', 'liac-arff', 'pymysql', 'aiuna'
+    'numpy', 'sklearn', 'liac-arff', 'pymysql', 'aiuna', 'requests'
 ]
 
 

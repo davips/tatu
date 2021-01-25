@@ -1,3 +1,6 @@
+![test](https://github.com/davips/tatu/workflows/test/badge.svg)
+[![codecov](https://codecov.io/gh/davips/tatu/branch/main/graph/badge.svg)](https://codecov.io/gh/davips/tatu)
+
 # tatu - Storage of Scientific Data 
 **WARNING: This project is still subject to major changes, e.g., in the next rewrite.**
 
