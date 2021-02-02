@@ -41,7 +41,7 @@ class OkaSt(StorageInterface):
     def _config_(self):
         return self._config
 
-    def __init__(self, token,
+    def __init__(self, token="Invalid",
                  alias=None, threaded=True, url: Union[callable, str] = "http://localhost:5000", close_when_idle=False):
         self._config = locals().copy()
         del self._config["self"]
@@ -62,7 +62,7 @@ class OkaSt(StorageInterface):
             print("Please login before.")
             from tatu.auth import get_token
             self.token = get_token(self.url)
-            self.request(route, method, **kwargs)
+            return self.request(route, method, **kwargs)
         elif r.status_code == 422:
             # msg = j(r)["errors"]["json"]
             # print(j(r))

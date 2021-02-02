@@ -61,6 +61,8 @@ class MySQL(SQL):
         super().__init__(threaded, timeout=8, close_when_idle=close_when_idle)
 
     def _uuid_(self):
+        print(22222222222222222222222222)
+        print(self._uuid)
         return self._uuid
 
     def _open_(self):
