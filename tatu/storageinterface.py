@@ -150,12 +150,12 @@ class StorageInterface(asThread, Storage, ABC):
                     data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
             else:
                 for k, v in data.items():
-                    if k == "stream" and data.stream:
+                    if k == "stream" and data.stream and len(list(data.stream)) > 0:
                         # Consume stream, to be stored after putdata().
                         streams[data.id] = list(data.stream)
                     else:
                         id = data.uuids[k].id
-                        if id in missing and k != "inner":
+                        if id in missing and k != "inner" and k != "stream":
                             content = fpack(data, k)
                             # TODO/REMINDER: exceptionally two datasets can have some equal contents, like Xd;
                             #   so we send it again while the hash is not based on content
@@ -185,7 +185,8 @@ class StorageInterface(asThread, Storage, ABC):
                     hasstream, inner = d.hasstream, d.inner if d.hasinner else None
                 else:
                     hasstream, inner = False, None
-                self.putdata(ancestor_duuid.id, step.id, inner and inner.id, hasstream, parent_uuid.id, None, ignoredup=True)
+                self.putdata(ancestor_duuid.id, step.id, inner and inner.id, hasstream, parent_uuid.id, None,
+                             ignoredup=True)
                 # TODO: adopt logging    print(datauuid, 3333333333333333333333333333333333333333)
 
             if lazy:
@@ -197,6 +198,8 @@ class StorageInterface(asThread, Storage, ABC):
                     for pos, streamed_data in enumerate(streams[d.id]):
                         self.store(streamed_data, ignoredup=True)
                         rows.append((d.id, str(pos), streamed_data.id))
+                    if not rows:
+                        raise Exception("Empty stream??")
                     self.putstream(rows)
 
                     # Return a new iterator in the place of the original stream.

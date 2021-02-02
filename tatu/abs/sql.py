@@ -89,11 +89,17 @@ class SQL(SQLReadOnly, ABC):
         return self._handle_integrity_error(id, sql, [id, step, inn, stream, parent, locked])
 
     def _putstream_(self, rows, ignoredup=False):
+        # try:
         with self.cursor() as c:
             self.write_many(c, rows, "stream", ignoredup)
             self.commit()
             r = c.rowcount
         return r
+
+    # except Exception as e:
+    #     import traceback
+    #     traceback.print_exc()
+    #     print(e)
 
     def _putfields_(self, rows, ignoredup=False):
         with self.cursor() as c:

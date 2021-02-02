@@ -70,7 +70,11 @@ class OkaSt(StorageInterface):
         else:
             if r.ok:
                 return r
+            print(r.content)
+            print(j(r))
+            print(j(r)["errors"])
             msg = j(r)["errors"]["json"]
+            print(msg)
             raise Exception(msg)
     
     def _uuid_(self):
