@@ -150,7 +150,7 @@ class StorageInterface(asThread, Storage, ABC):
                     data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
             else:
                 for k, v in data.items():
-                    if k == "stream":
+                    if k == "stream" and data.stream:
                         # Consume stream, to be stored after putdata().
                         streams[data.id] = list(data.stream)
                     else:
@@ -185,7 +185,7 @@ class StorageInterface(asThread, Storage, ABC):
                     hasstream, inner = d.hasstream, d.inner if d.hasinner else None
                 else:
                     hasstream, inner = False, None
-                self.putdata(ancestor_duuid.id, step.id, inner, hasstream, parent_uuid.id, None, ignoredup=True)
+                self.putdata(ancestor_duuid.id, step.id, inner and inner.id, hasstream, parent_uuid.id, None, ignoredup=True)
                 # TODO: adopt logging    print(datauuid, 3333333333333333333333333333333333333333)
 
             if lazy:

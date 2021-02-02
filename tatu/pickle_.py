@@ -38,6 +38,9 @@ from tatu.storageinterface import StorageInterface
 
 
 class Pickle(StorageInterface):
+    def _config_(self):
+        return self._config
+
     def _hasdata_(self, id, include_empty):
         pass
 
@@ -90,6 +93,9 @@ class Pickle(StorageInterface):
         raise Exception("Storage Pickle cannot retrieve children!")
 
     def __init__(self, threaded=True, db="tatu-sqlite", compress=True, close_when_idle=False):
+        self._config = locals().copy()
+        del self._config["self"]
+        del self._config["__class__"]
         self.db = db
         self.compress = compress
         if not Path(db).exists():

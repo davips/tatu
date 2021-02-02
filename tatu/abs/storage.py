@@ -33,6 +33,22 @@ class Storage(withIdentification, ABC):
      SQLite, remote/local MongoDB, MySQL server, pickled or even CSV files.
     """
 
+    @property
+    def config(self):
+        return self._config_()
+
+    @abstractmethod
+    def _config_(self):
+        pass
+
+    @property
+    def desc(self):
+        return {"name": self.name, "path": self.context, "config": self.config}
+
+    @property
+    def asdict(self):
+        return {"id": self.id, "desc": self.desc}
+
     @abstractmethod
     def fetch(self, data, lock=False, lazy=True):  # , recursive=True):
         """Fetch the Data object fields on-demand if lazy=True.

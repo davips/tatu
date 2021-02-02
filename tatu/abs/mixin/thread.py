@@ -96,7 +96,7 @@ class asThread(ABC):
         # TODO: discover why flask reads old values from MySQL until restart,
         #    so we can remove this reconnection from inside the while.
 
-        # IF needed due to bug #-123
+        # conditional 'IF' needed here due to bug #-123
         # File "/home/davi/git/oka-repository/backend/app/api/posts.py", line 319, in get
         #     for m in data.Yt[0]:
         # AttributeError: 'NoneType' object has no attribute 'Yt'

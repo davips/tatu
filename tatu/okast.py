@@ -38,8 +38,14 @@ def j(r):
 class OkaSt(StorageInterface):
     """Central remote storage"""
 
+    def _config_(self):
+        return self._config
+
     def __init__(self, token,
                  alias=None, threaded=True, url: Union[callable, str] = "http://localhost:5000", close_when_idle=False):
+        self._config = locals().copy()
+        del self._config["self"]
+        del self._config["__class__"]
         # print("STORAGE: ", url)
         self.token = token
         self.external_requests = url if callable(url) else self.request

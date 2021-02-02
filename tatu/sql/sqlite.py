@@ -30,8 +30,14 @@ from tatu.abs.sql import SQL
 
 
 class SQLite(SQL):
+    def _config_(self):
+        return self._config
+
     def __init__(self, db="tatu-sqlite", threaded=True, close_when_idle=False, storage_info=None, debug=False,
                  read_only=False):
+        self._config = locals().copy()
+        del self._config["self"]
+        del self._config["__class__"]
         self.info = db
         self.read_only = read_only
         self.hostname = socket.gethostname()

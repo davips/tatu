@@ -59,7 +59,14 @@ from tatu.abs.storage import Storage
 class Tatu(Storage):
     storage = None
 
+    def _config_(self):
+        return self._config
+
     def __init__(self, url="sqlite://tatu-sqlite", threaded=True, alias=None, close_when_idle=False):
+        self._config = locals().copy()
+        del self._config["self"]
+        if "__class__" in self._config:
+            del self._config["__class__"]
         # print("STORAGE:", url)
         if "://" not in url:
             raise Exception("Missing '://' in url:", url)

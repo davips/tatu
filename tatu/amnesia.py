@@ -29,10 +29,14 @@ from tatu.storageinterface import StorageInterface
 
 
 class Amnesia(StorageInterface):
+    def _config_(self):
+        return self._config
+
     def _fetch_children_(self, data: Data):
         raise Exception("(Pseudo)Storage Amnesia cannot retrieve children!")
 
     def __init__(self):
+        self._config = {}
         super().__init__(threaded=False, timeout=None, close_when_idle=False)
 
     def _uuid_(self):

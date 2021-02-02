@@ -83,6 +83,8 @@ class SQL(SQLReadOnly, ABC):
             return r == 1
 
     def _putdata_(self, id, step, inn, stream, parent, locked, ignoredup=False):
+        # if id == "0iQlsaDROpjL7YRZBcFr0Py":
+        #     raise Exception("--------------------")
         sql = f"insert {'or ignore' if ignoredup else ''} INTO data values (null,?,?,?,?,?,?)"
         return self._handle_integrity_error(id, sql, [id, step, inn, stream, parent, locked])
 
