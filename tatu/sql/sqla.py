@@ -26,37 +26,28 @@ import socket
 import pymysql
 import pymysql.cursors
 from pymysql.constants import CLIENT
+from sqlalchemy.engine import Engine
 
 from garoupa.decorator import classproperty
 from garoupa.uuid import UUID
 from tatu.abs.sql import SQL
 
 
-class MySQL(SQL):
+class SQLA(SQL):
     def _config_(self):
         return self._config
 
-    def __init__(self,
-                 db="user:pass@ip/db", threaded=True, close_when_idle=False, storage_info=None, debug=False,
-                 read_only=False):
+    def __init__(self, engine, threaded=True, close_when_idle=False, storage_info=None, debug=False, read_only=False):
         self._config = locals().copy()
+        if not isinstance(engine, Engine):
+            raise Exception("Wrong engine:", type(engine))
         del self._config["self"]
         del self._config["__class__"]
         self._uuid = UUID((self.__class__.__name__ + db).encode())
-        if "@" not in db:
-            raise Exception("Missing @ at db url:", db)
-        server = db.split("/")[0]
-        db = db.split("/")[1]
-        self.info = "STORAGE DBG:" + server + ", " + db
         self.read_only = read_only
-        self.database = server
-        credentials, self.host = server.split("@")
-        self.user, self.password = credentials.split(":")
-        self.db = db  # TODO sensitive information should disappear after init
+        self.engine = engine  # TODO sensitive information should disappear after init
         self.storage_info = storage_info
         self.debug = debug
-        if "-" in db:
-            raise Exception("'-' not allowed in db name!")
         self.hostname = socket.gethostname()
         super().__init__(threaded, timeout=8, close_when_idle=close_when_idle)
 

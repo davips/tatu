@@ -53,6 +53,8 @@
 #      You should have received a copy of the GNU General Public License
 #      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 #
+from sqlalchemy.engine import Engine
+
 from tatu.abs.storage import Storage
 
 
@@ -68,22 +70,26 @@ class Tatu(Storage):
         if "__class__" in self._config:
             del self._config["__class__"]
         # print("STORAGE:", url)
-        if "://" not in url:
-            raise Exception("Missing '://' in url:", url)
-        backend, db = url.split("://")
-        if backend == "sqlite":
-            from tatu.sql.sqlite import SQLite
-            self.storage = SQLite(db, threaded, close_when_idle)
-        elif backend == "mysql":
-            from tatu.sql.mysql import MySQL
-            self.storage = MySQL(db, threaded, close_when_idle)
-        elif backend == "oka":
-            from tatu.okast import OkaSt
-            token, url = db.split("@")
-            self.storage = OkaSt(token, alias, threaded, "http://" + url,
-                                 close_when_idle)  # TODO Accept user/login in OkaSt?
+        if isinstance(url, Engine):
+            from tatu.sql.sqla import SQLA
+            self.storage = SQLA(engine=url)
         else:
-            raise Exception("Unknown DBMS backend:", url)
+            if "://" not in url:
+                raise Exception("Missing '://' in url:", url)
+            backend, db = url.split("://")
+            if backend == "sqlite":
+                from tatu.sql.sqlite import SQLite
+                self.storage = SQLite(db, threaded, close_when_idle)
+            elif backend == "mysql":
+                from tatu.sql.mysql import MySQL
+                self.storage = MySQL(db, threaded, close_when_idle)
+            elif backend == "oka":
+                from tatu.okast import OkaSt
+                token, url = db.split("@")
+                self.storage = OkaSt(token, alias, threaded, "http://" + url,
+                                     close_when_idle)  # TODO Accept user/login in OkaSt?
+            else:
+                raise Exception("Unknown DBMS backend:", url)
 
     def _uuid_(self):
         return self.storage.uuid
