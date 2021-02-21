@@ -60,8 +60,8 @@ class OkaSt(StorageInterface):
         r = getattr(req, method)(self.url + route, headers=headers, **kwargs)
         if r.status_code == 401:
             print("Please login before.")
-            from tatu.auth import get_token
-            self.token = get_token(self.url)
+            from tatu.auth import gettoken
+            self.token = gettoken(self.url)
             return self.request(route, method, **kwargs)
         elif r.status_code == 422:
             # msg = j(r)["errors"]["json"]
