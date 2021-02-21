@@ -55,7 +55,8 @@ class StorageInterface(asThread, Storage, ABC):
             return
 
         fields = {} if isinstance(data, str) else data.field_funcs_m
-        for field, fid in list(ret["uuids"].items()) + [("stream", None)]:
+        field_id_lst = list(ret["uuids"].items()) + ([("stream", None)] if ret["stream"] else [])
+        for field, fid in field_id_lst:
             if field == "inner":
                 fields[field] = lambda: self.fetch(fid)
             elif field == "stream":
@@ -69,7 +70,7 @@ class StorageInterface(asThread, Storage, ABC):
                     fields[field] = unpack(self.getcontent(fid))
 
             # Call each lambda by a friendly name.
-            if lazy and field != "changed":
+            if lazy and field != "changed" and field in data.field_funcs_m:
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
         if isinstance(data, str):
@@ -150,7 +151,7 @@ class StorageInterface(asThread, Storage, ABC):
                     data.field_funcs_m[field].__name__ = "_" + data.uuids[field].id + "_to_storage_" + self.id
             else:
                 for k, v in data.items():
-                    if k == "stream" and data.stream and len(list(data.stream)) > 0:
+                    if k == "stream" and data.hasstream:
                         # Consume stream, to be stored after putdata().
                         streams[data.id] = list(data.stream)
                     else:
