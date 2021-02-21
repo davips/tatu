@@ -10,9 +10,10 @@ def gettoken(url, username=None, password=None):
 
     while tries < ntries:
         tries += 1
-        username = input("Username to connect to OKA: ")
-        password = getpass("Password to connect to OKA: ")
-        data = data or {"username": username, "password": password}
+        data = data or {
+            "username": input("Username to connect to OKA: "),
+            "password": getpass("Password to connect to OKA: ")
+        }
         okast = OkaSt(token=None, url=url, close_when_idle=True)
         response = okast.request(f"/api/auth/login", "post", json=data)
         if response and 'access_token' in j(response):
