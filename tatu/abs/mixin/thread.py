@@ -117,6 +117,8 @@ class asThread(ABC):
             # File "/home/davi/git/oka-repository/backend/app/api/posts.py", line 319, in get
             #     for m in data.Yt[0]:
             # AttributeError: 'NoneType' object has no attribute 'Yt'
+
+            # Got an error reading communication packet
             if not isinstance(self, SQLite):
                 try:
                     self._open_()
