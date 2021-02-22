@@ -107,6 +107,9 @@ class Tatu(Storage):
     def fetchstep(self, id):
         return self.storage.fetchstep(id)
 
+    def fetchstream(self, id):
+        return self.storage.fetchstream(id)
+
     def hasdata(self, id, include_empty=False):
         return self.storage.hasdata(id, include_empty)
 
