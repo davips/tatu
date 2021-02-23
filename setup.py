@@ -58,7 +58,8 @@ CLASSIFIERS = ['Intended Audience :: Science/Research',
 
 INSTALL_REQUIRES = [
     'numpy', 'sklearn', 'liac-arff', 'pymysql', 'aiuna', 'requests',
-    'sqlalchemy'
+    'sqlalchemy',
+    # 'flask', 'flask_sqlalchemy'  # for tests
 ]
 
 
