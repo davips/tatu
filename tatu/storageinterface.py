@@ -81,7 +81,7 @@ class StorageInterface(asThread, Storage, ABC):
                     fields[field] = unpack(self.getcontent(fid))
 
             # Call each lambda by a friendly name.
-            if lazy and field != "changed":  # and field in data.field_funcs_m:
+            if lazy and field != "changed" and islazy(fields[field]):  # and field in data.field_funcs_m:
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
         if isinstance(data, str):
