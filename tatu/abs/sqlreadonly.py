@@ -60,7 +60,7 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
         for row in r:
             if row["locked"]:
                 raise LockedEntryException("Cannot get a locked Data object.")
-            if row["field_name"]:
+            if row["field_name"]:  # Empty data?
                 uuids[row["field_name"]] = row["field_id"]
         return {"uuids": uuids, "step": row["step"], "parent": row["parent"], "inner": row["inn"],
                 "stream": row["stream"]}
@@ -142,5 +142,5 @@ class SQLReadOnly(StorageInterface, withSetup, ABC):
         return "".join(list(sum(zipped, ()))).replace('"None"', "NULL")
 
     def commit(self):
-        #print("LOGGING:::  commit")
+        # print("LOGGING:::  commit")
         self.connection.commit()

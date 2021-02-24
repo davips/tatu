@@ -166,12 +166,13 @@ class StorageInterface(asThread, Storage, ABC):
                         # Consume stream, to be stored after putdata().
                         streams[data.id] = list(data.stream)
                     else:
-                        id = data.uuids[k].id
-                        if id in missing and k != "inner" and k != "stream":
-                            content = fpack(data, k)
-                            # TODO/REMINDER: exceptionally two datasets can have some equal contents, like Xd;
-                            #   so we send it again while the hash is not based on content
-                            self.putcontent(id, content, ignoredup=True)
+                        if k != "inner" and k != "stream":
+                            id = data.uuids[k].id
+                            if id in missing:
+                                content = fpack(data, k)
+                                # TODO/REMINDER: exceptionally two datasets can have some equal contents, like Xd;
+                                #   so we send it again while the hash is not based on content
+                                self.putcontent(id, content, ignoredup=True)
 
             lst.append(data)
             if not data.hasinner:
@@ -212,7 +213,7 @@ class StorageInterface(asThread, Storage, ABC):
                         rows.append((d.id, str(pos), streamed_data.id))
                     if not rows:
                         raise Exception("Empty stream??")
-                    self.putstream(rows)
+                    self.putstream(rows, ignoredup=ignoredup)
 
                     # Return a new iterator in the place of the original stream.
                     d.field_funcs_m["stream"] = iter(streams[d.id])
