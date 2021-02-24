@@ -19,9 +19,10 @@
 #  along with tatu.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+from multiprocessing import JoinableQueue, Queue
+
 import threading
 from abc import ABC, abstractmethod
-from multiprocessing import JoinableQueue, Queue
 from queue import Empty
 
 
@@ -53,6 +54,7 @@ class asThread(ABC):
             self.queue.put(None)
         self.isopen = False
         self.mythread = None
+        self._close_()
 
     @property
     def threaded(self):

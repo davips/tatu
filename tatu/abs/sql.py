@@ -20,9 +20,9 @@
 #  part of this work is a crime and is unethical regarding the effort and
 #  time spent here.
 #  Relevant employers or funding agencies will be notified accordingly.
-from abc import ABC
 from sqlite3 import IntegrityError as sqliteIntegError
 
+from abc import ABC
 from pymysql import IntegrityError as myIntegError
 
 from akangatu.transf.noop import NoOp
@@ -37,7 +37,12 @@ class SQL(SQLReadOnly, ABC):
     def _close_(self):
         from tatu.sql.sqlite import SQLite
         if self.connection and not isinstance(self, SQLite) and self.connection.open:
-            self.connection.close()
+            try:
+                self.connection.close()
+            except:
+                pass
+                # if self.debug:
+                # print("W: Ignoring exception while closing MySQL.")
 
     def _deldata_(self, id):
         with self.cursor() as c:
