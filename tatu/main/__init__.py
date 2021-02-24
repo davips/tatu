@@ -64,7 +64,9 @@ class Tatu(Storage):
     def _config_(self):
         return self._config
 
-    def __init__(self, url="sqlite://tatu-sqlite", threaded=True, alias=None, close_when_idle=False):
+    def __init__(self, url="sqlite://tatu-sqlite", threaded=True, alias=None, close_when_idle=False,
+                 disable_close=False):
+        self.disable_close = disable_close
         self._config = locals().copy()
         del self._config["self"]
         if "__class__" in self._config:
@@ -170,5 +172,6 @@ class Tatu(Storage):
     def open(self):
         return self.storage.open()
 
-    def close(self):
-        return self.storage.close()
+    def close(self, force=False):
+        if not self.disable_close or force:
+            return self.storage.close()
