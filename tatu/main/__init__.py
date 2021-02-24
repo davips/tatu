@@ -98,8 +98,8 @@ class Tatu(Storage):
         return self.storage.uuid
 
     # TODO make all args/kwargs explicity for better docs/IDE integration
-    def fetch(self, data, lock=False, lazy=True):
-        return self.storage.fetch(data, lock, self.force_lazyfetch or lazy)
+    def fetch(self, data, lock=False, lazy=True, ignorelock=False):
+        return self.storage.fetch(data, lock, self.force_lazyfetch or lazy, ignorelock)
 
     def store(self, data, unlock=False, ignoredup=False, lazy=False):
         return self.storage.store(data, unlock, ignoredup, lazy)

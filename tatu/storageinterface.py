@@ -31,13 +31,13 @@ from akangatu.linalghelper import islazy
 from akangatu.transf.step import Step
 from garoupa.uuid import UUID
 from tatu.abs.mixin.thread import asThread
-from tatu.abs.storage import Storage, DuplicateEntryException
+from tatu.abs.storage import Storage, DuplicateEntryException, LockedEntryException
 
 
 class StorageInterface(asThread, Storage, ABC):
     # TODO (strict) fetch by uuid
     # TODO (strict) store
-    def fetch(self, data, lock=False, lazy=True):
+    def fetch(self, data, lock=False, lazy=True, ignorelock=False):
         # , recursive=True):   # TODO: pensar no include_empty=False se faz sentido
         """Fetch the data object fields on-demand.
          data: uuid string or a (probably still not fully evaluated) Data object."""
@@ -45,7 +45,13 @@ class StorageInterface(asThread, Storage, ABC):
         # lst = []
         # print("LOGGING:::  Fetching...", data_id)
         # while True:
-        ret = self.getdata(data_id, include_empty=True)
+        try:
+            ret = self.getdata(data_id, include_empty=True)
+        except LockedEntryException:
+            if not ignorelock:
+                raise None
+            ret = None
+            lock = False  # Already locked.
 
         if ret is None or not ret["uuids"]:
             # REMINDER: check_existence false porque pode ser um data vazio
@@ -112,7 +118,7 @@ class StorageInterface(asThread, Storage, ABC):
         :param check_dup:
         :param recursive:
         """
-        if not ignoredup and self.hasdata(data.id):
+        if not ignoredup and self.hasdata(data.id) and not unlock:
             raise DuplicateEntryException(data.id)
 
         # Embed lazy storers inside the Data object.

@@ -50,7 +50,7 @@ class Storage(withIdentification, ABC):
         return {"id": self.id, "desc": self.desc}
 
     @abstractmethod
-    def fetch(self, data, lock=False, lazy=True):  # , recursive=True):
+    def fetch(self, data, lock=False, lazy=True, ignorelock=False):
         """Fetch the Data object fields on-demand if lazy=True.
          data: uuid string or a (probably still not fully evaluated) Data object."""
 
