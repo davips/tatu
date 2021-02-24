@@ -27,11 +27,11 @@ from aiuna.compression import unpack, fpack
 from aiuna.content.data import Data
 from aiuna.content.root import Root
 from aiuna.history import History
-from garoupa.uuid import UUID
 from akangatu.linalghelper import islazy
-from tatu.abs.mixin.thread import asThread
-from tatu.abs.storage import Storage, DuplicateEntryException, LockedEntryException
 from akangatu.transf.step import Step
+from garoupa.uuid import UUID
+from tatu.abs.mixin.thread import asThread
+from tatu.abs.storage import Storage, DuplicateEntryException
 
 
 class StorageInterface(asThread, Storage, ABC):
@@ -54,9 +54,14 @@ class StorageInterface(asThread, Storage, ABC):
                 raise Exception("Could not lock data:", data_id)
             return
 
+        dic = ret["uuids"].copy()
+        if ret["stream"]:
+            dic["stream"] = None
+        if ret["inner"]:
+            dic["inner"] = ret["inner"]
+
         fields = {} if isinstance(data, str) else data.field_funcs_m
-        field_id_lst = list(ret["uuids"].items()) + ([("stream", None)] if ret["stream"] else [])
-        for field, fid in field_id_lst:
+        for field, fid in list(dic.items()):
             if field == "inner":
                 fields[field] = lambda: self.fetch(fid)
             elif field == "stream":
@@ -70,12 +75,12 @@ class StorageInterface(asThread, Storage, ABC):
                     fields[field] = unpack(self.getcontent(fid))
 
             # Call each lambda by a friendly name.
-            if lazy and field != "changed" and field in data.field_funcs_m:
+            if lazy and field != "changed":  # and field in data.field_funcs_m:
                 fields[field].__name__ = "_" + fields[field].__name__ + "_from_storage_" + self.id
 
         if isinstance(data, str):
-            if lazy:
-                raise Exception("lazy ainda não retorna histórico para data dado por uuid-string")  # <-- TODO
+            # if lazy:
+            #     print("Checar se lazy ainda não retorna histórico para data dado por uuid-string")  # <-- TODO?
             history = self.fetchhistory(data)
         else:
             history = data.history
