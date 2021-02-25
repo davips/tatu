@@ -30,6 +30,18 @@ from tatu.abs.sql import SQL
 
 
 class SQLite(SQL):
+    def _close_(self):
+        if self.debug:
+            print("............ close sqlite ..............................\n")
+        if self.connection:
+            try:
+                self.connection.close()
+            except:
+                pass
+                # if self.debug:
+                # print("W: Ignoring exception while closing MySQL.")
+        self.connection = None
+
     def _config_(self):
         return self._config
 
@@ -51,6 +63,8 @@ class SQLite(SQL):
         return self._uuid
 
     def _open_(self):
+        if self.debug:
+            print("\nopen sqlite .....................................")
         # isolation_level=None -> SQLite autocommiting
         # isolation_level='DEFERRED' -> SQLite transactioning
         self.connection = sqlite3.connect(self.database, isolation_level='DEFERRED')

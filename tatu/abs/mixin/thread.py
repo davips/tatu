@@ -173,8 +173,7 @@ class asThread(ABC):
 
             # needed due to bug #-123 explained above
             finally:
-                if not isinstance(self, SQLite):
-                    self._close_()
+                self._close_()
 
         self._close_()
 

@@ -34,16 +34,6 @@ from tatu.abs.storage import LockedEntryException, DuplicateEntryException
 class SQL(SQLReadOnly, ABC):
     read_only = False
 
-    def _close_(self):
-        from tatu.sql.sqlite import SQLite
-        if self.connection and not isinstance(self, SQLite) and self.connection.open:
-            try:
-                self.connection.close()
-            except:
-                pass
-                # if self.debug:
-                # print("W: Ignoring exception while closing MySQL.")
-
     def _deldata_(self, id):
         with self.cursor() as c:
             self.run(c, f"delete from data where id=?", [id])

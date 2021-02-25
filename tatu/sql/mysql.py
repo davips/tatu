@@ -33,6 +33,16 @@ from tatu.abs.sql import SQL
 
 
 class MySQL(SQL):
+
+    def _close_(self):
+        if self.connection and self.connection.open:
+            try:
+                self.connection.close()
+            except:
+                pass
+                # if self.debug:
+                # print("W: Ignoring exception while closing MySQL.")
+
     def _config_(self):
         return self._config
 
