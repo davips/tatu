@@ -22,7 +22,7 @@ import setuptools
 NAME = "tatu"
 
 
-VERSION = "0.2102.23"
+VERSION = "0.2102.24"
 
 
 AUTHOR = 'Davi Pereira dos Santos'
