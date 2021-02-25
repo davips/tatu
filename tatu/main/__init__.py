@@ -20,39 +20,7 @@
 #  part of this work is a crime and is unethical regarding the effort and
 #  time spent here.
 #  Relevant employers or funding agencies will be notified accordingly.
-#
-#  tatu is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  tatu is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with tatu.  If not, see <http://www.gnu.org/licenses/>.
-#
-#  (*) Removing authorship by any means, e.g. by distribution of derived
-#  works or verbatim, obfuscated, compiled or rewritten versions of any
-#  part of this work is a crime and is unethical regarding the effort and
-#  time spent here.
-#  Relevant employers or funding agencies will be notified accordingly.
-#
-#      tatu is free software: you can redistribute it and/or modify
-#      it under the terms of the GNU General Public License as published by
-#      the Free Software Foundation, either version 3 of the License, or
-#      (at your option) any later version.
-#
-#      tatu is distributed in the hope that it will be useful,
-#      but WITHOUT ANY WARRANTY; without even the implied warranty of
-#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#      GNU General Public License for more details.
-#
-#      You should have received a copy of the GNU General Public License
-#      along with tatu.  If not, see <http://www.gnu.org/licenses/>.
-#
+
 from sqlalchemy.engine import Engine
 
 from tatu.abs.storage import Storage
@@ -82,7 +50,7 @@ class Tatu(Storage):
             backend, db = url.split("://")
             if backend == "sqlite":
                 from tatu.sql.sqlite import SQLite
-                self.storage = SQLite(db, threaded, close_when_idle)
+                self.storage = SQLite(db, threaded, close_when_idle, disable_close=disable_close)
             elif backend == "mysql":
                 from tatu.sql.mysql import MySQL
                 self.storage = MySQL(db, threaded, close_when_idle)

@@ -33,21 +33,21 @@ class SQLite(SQL):
     def _close_(self):
         if self.debug:
             print("............ close sqlite ..............................\n")
-        if self.connection:
+        if self.connection and not self.disable_close:
             try:
                 self.connection.close()
             except:
                 pass
                 # if self.debug:
                 # print("W: Ignoring exception while closing MySQL.")
-        self.connection = None
 
     def _config_(self):
         return self._config
 
     def __init__(self, db="tatu-sqlite", threaded=True, close_when_idle=False, storage_info=None, debug=False,
-                 read_only=False):
+                 read_only=False, disable_close=False):
         self._config = locals().copy()
+        self.disable_close = disable_close
         del self._config["self"]
         del self._config["__class__"]
         self.info = db
