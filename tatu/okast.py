@@ -27,7 +27,7 @@ import requests as req
 from garoupa.uuid import UUID
 from tatu.storageinterface import StorageInterface
 
-default_url = 'http://data.analytics.icmc.usp.br'
+default_url = 'http://oka.icmc.usp.br'
 
 
 def j(r):
