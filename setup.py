@@ -22,7 +22,7 @@ import setuptools
 NAME = "tatu"
 
 
-VERSION = "0.2102.24"
+VERSION = "0.2102.25"
 
 
 AUTHOR = 'Davi Pereira dos Santos'
@@ -57,7 +57,7 @@ CLASSIFIERS = ['Intended Audience :: Science/Research',
 
 
 INSTALL_REQUIRES = [
-    'numpy', 'sklearn', 'liac-arff', 'pymysql', 'aiuna', 'requests',
+    'numpy', 'sklearn', 'liac-arff', 'pymysql', 'aiuna==0.2103.13', 'requests',
     'sqlalchemy',
     # 'flask', 'flask_sqlalchemy'  # for tests
 ]
