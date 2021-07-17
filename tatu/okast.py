@@ -27,7 +27,7 @@ import requests as req
 from garoupa.uuid import UUID
 from tatu.storageinterface import StorageInterface
 
-default_url = 'http://oka.icmc.usp.br'
+default_url = 'https://oka.icmc.usp.br'
 
 
 def j(r):
@@ -41,8 +41,8 @@ class OkaSt(StorageInterface):
     def _config_(self):
         return self._config
 
-    def __init__(self, token="Invalid",
-                 alias=None, threaded=True, url: Union[callable, str] = "http://localhost:5000", close_when_idle=False):
+    def __init__(self, token, threaded=True, url: Union[callable, str] = "http://localhost:5000",
+                 close_when_idle=False):
         self._config = locals().copy()
         del self._config["self"]
         del self._config["__class__"]
@@ -50,22 +50,16 @@ class OkaSt(StorageInterface):
         self.token = token
         self.external_requests = url if callable(url) else self.request
         self.url = url
-        self.alias = alias
         self.prefix = self.url if isinstance(self.url, str) else ""
         # TODO: check if threading will destroy oka
         super().__init__(threaded, timeout=6, close_when_idle=close_when_idle)
 
     def request(self, route, method, **kwargs):
-        headers = {'Authorization': 'Bearer ' + self.token} if self.token else {}
+        headers = {'Authorization': 'Bearer ' + self.token}
         r = getattr(req, method)(self.url + route, headers=headers, **kwargs)
         if r.status_code == 401:
-            print("Please login before.")
-            from tatu.auth import gettoken
-            self.token = gettoken(self.url)
-            return self.request(route, method, **kwargs)
+            raise Exception("Token invalid!")
         elif r.status_code == 422:
-            # msg = j(r)["errors"]["json"]
-            # print(j(r))
             pass
         else:
             if r.ok:
@@ -76,7 +70,7 @@ class OkaSt(StorageInterface):
             msg = j(r)["errors"]["json"]
             print(msg)
             raise Exception(msg)
-    
+
     def _uuid_(self):
         # REMINDER syncing needs to know the underlying storage of okast, because the token is not constant as an identity
         return UUID(j(self.request(f"/api/sync_uuid", "get"))["uuid"])
